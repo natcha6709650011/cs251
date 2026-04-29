@@ -1,22 +1,22 @@
-import { useState } from "react";
 import Header from "./components/Header";
-import MemberRegister from "./pages/MemberRegister";
+import RegisterSuccess from "./pages/RegisterSuccess";
 
 function App() {
-  const [registerForm, setRegisterForm] = useState({
-    firstName: "",
-    lastName: "",
-    tel: "",
-    email: "",
-  });
-
   const employee = {
-    EId: "M123456",
+    EId: "E123456",
     EFirstName: "ขยัน",
     ESurName: "รักดี",
     ERole: "พนักงานเสิร์ฟ",
     EStatus: "กำลังทำงาน",
     avatar: "",
+  };
+
+  const customer = {
+    CId: "M0002",
+    MFirstName: "ณัชชา",
+    MSurName: "กาญจนาภา",
+    MTel: "0812345678",
+    MEmail: "member@email.com",
   };
 
   return (
@@ -31,11 +31,10 @@ function App() {
         onBillClick={() => alert("บิล")}
       />
 
-      <MemberRegister
-        registerForm={registerForm}
-        setRegisterForm={setRegisterForm}
-        onSubmit={() => alert(JSON.stringify(registerForm, null, 2))}
-        onBack={() => alert("กลับหน้ากรอกเบอร์สมาชิก")}
+      <RegisterSuccess
+        customer={customer}
+        memberMode="order"
+        onNext={() => alert("ไปหน้าเลือกโต๊ะ")}
       />
     </>
   );

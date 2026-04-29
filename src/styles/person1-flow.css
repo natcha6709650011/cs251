@@ -791,3 +791,70 @@
 .p1-register-submit {
   min-width: 160px;
 }
+
+.p1-register-success-card {
+  width: 560px;
+  max-width: 92%;
+  background: #fff;
+  border: 1.5px solid #111;
+  border-radius: 28px;
+  margin: 110px auto 0;
+  padding: 42px 44px;
+  text-align: center;
+  box-shadow: 0 4px 9px rgba(0, 0, 0, 0.18);
+}
+
+.p1-register-success-icon {
+  border-color: #111;
+  color: #111;
+}
+
+.p1-register-success-title {
+  font-size: 28px;
+  margin: 12px 0;
+  font-weight: 600;
+}
+
+.p1-register-success-text {
+  font-size: 20px;
+  margin: 0 0 24px;
+}
+
+.p1-register-success-btn {
+  width: 180px;
+  height: 48px;
+  padding: 0;
+  margin: 12px auto 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.p1-register-success-card {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.p1-register-success-icon {
+  border-color: #2eac55 !important;
+  color: #2eac55 !important;
+}
+
+.p1-register-success-btn {
+  width: 190px !important;
+  height: 50px !important;
+  padding: 0 !important;
+  margin: 10px auto 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.p1-register-success-title,
+.p1-register-success-text {
+  width: 100% !important;
+  text-align: center !important;
+}
