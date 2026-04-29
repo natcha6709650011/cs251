@@ -1,32 +1,37 @@
-import { initialDB } from "../data/mockData";
+import { mockData } from "../data/mockData";
 
-const DB_KEY = "cs_restaurant_frontend_db";
-
-function clone(value) {
-  return JSON.parse(JSON.stringify(value));
-}
+const STORAGE_KEY = "cs-restaurant-db";
 
 export function loadDB() {
-  const saved = localStorage.getItem(DB_KEY);
-  if (!saved) {
-    localStorage.setItem(DB_KEY, JSON.stringify(initialDB));
-    return clone(initialDB);
-  }
   try {
-    return JSON.parse(saved);
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (!saved) {
+      return mockData;
+    }
+
+    const parsed = JSON.parse(saved);
+
+    return {
+      ...mockData,
+      ...parsed,
+      employees: parsed.employees || mockData.employees,
+      members: parsed.members || mockData.members,
+      tables: parsed.tables || mockData.tables,
+      menus: parsed.menus && parsed.menus.length > 0 ? parsed.menus : mockData.menus,
+      reservations: parsed.reservations || [],
+      orders: parsed.orders || [],
+      payments: parsed.payments || [],
+      reviewSessions: parsed.reviewSessions || [],
+      reviews: parsed.reviews || [],
+      experienceTopics: parsed.experienceTopics || mockData.experienceTopics,
+    };
   } catch (error) {
-    console.error("Cannot parse localStorage DB:", error);
-    localStorage.setItem(DB_KEY, JSON.stringify(initialDB));
-    return clone(initialDB);
+    console.error("Load DB error:", error);
+    return mockData;
   }
 }
 
 export function saveDB(db) {
-  localStorage.setItem(DB_KEY, JSON.stringify(db));
-}
-
-export function resetDB() {
-  localStorage.removeItem(DB_KEY);
-  localStorage.setItem(DB_KEY, JSON.stringify(initialDB));
-  return clone(initialDB);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
 }

@@ -1,70 +1,82 @@
-// src/pages/OrderFood.jsx
 import "../styles/person2-order.css";
-import { useMemo } from "react";
 
-export default function OrderFood({ menus, activeCategory, setActiveCategory, onMenuClick }) {
-  
-  // 1. กรองเมนูตาม Category ที่กดเลือก
-  const displayMenus = useMemo(() => {
+const tabs = [
+  { key: "recommended", label: "เมนูแนะนำ" },
+  { key: "food", label: "อาหาร" },
+  { key: "snackDessert", label: "ของทานเล่นและของหวาน" },
+  { key: "drink", label: "เครื่องดื่ม" },
+];
+
+function OrderFood({
+  menus = [],
+  activeCategory = "recommended",
+  setActiveCategory,
+  onMenuClick,
+}) {
+  const allMenus = Array.isArray(menus) ? menus : Object.values(menus).flat();
+
+  const displayMenus = allMenus.filter((menu) => {
     if (activeCategory === "recommended") {
-      return menus.filter((m) => m.recommended);
+      return menu.category === "recommended" || menu.recommended === true;
     }
-    return menus.filter((m) => m.category === activeCategory);
-  }, [menus, activeCategory]);
+
+    return menu.category === activeCategory;
+  });
 
   return (
-    <div className="p2-menu-page">
-      {/* ส่วน Header สีแดง */}
-      <div className="p2-top-header">
-        <div className="p2-header-content">
-          <div className="p2-profile-section">
-            <div className="p2-avatar">
-              <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100" alt="profile" />
-            </div>
-            <button className="p2-btn-white">M5</button>
-            <button className="p2-btn-white">เลือกโต๊ะ</button>
-          </div>
-          <div className="p2-cart-section">
-             <span className="p2-cart-icon">🛒</span>
-             <button className="p2-btn-white">ตะกร้าของคุณ</button>
-             <button className="p2-btn-white">บิล</button>
-          </div>
-        </div>
-      </div>
-
-      {/* ส่วนปุ่มเลือกหมวดหมู่ (ที่หายไป) */}
-      <div className="p2-category-tabs">
-        <button 
-          className={activeCategory === "recommended" ? "p2-active" : ""}
-          onClick={() => setActiveCategory("recommended")}
-        >เมนูแนะนำ</button>
-        <button 
-          className={activeCategory === "food" ? "p2-active" : ""}
-          onClick={() => setActiveCategory("food")}
-        >อาหาร</button>
-        <button 
-          className={activeCategory === "snack-dessert" ? "p2-active" : ""}
-          onClick={() => setActiveCategory("snack-dessert")}
-        >ของทานเล่นและของหวาน</button>
-        <button 
-          className={activeCategory === "drink" ? "p2-active" : ""}
-          onClick={() => setActiveCategory("drink")}
-        >เครื่องดื่ม</button>
-      </div>
-
-      {/* ส่วนแสดงรูปภาพเมนู */}
-      <div className="p2-menu-grid">
-        {displayMenus.map((menu) => (
-          <div key={menu.id} className="p2-menu-card" onClick={() => onMenuClick(menu)}>
-            <div className="p2-card-img">
-              <img src={menu.image} alt={menu.name} onError={(e) => e.target.src='https://via.placeholder.com/150'} />
-            </div>
-            <div className="p2-card-detail">
-              <h4>{menu.name}</h4>
-            </div>
-          </div>
+    <main className="p2-order-page">
+      <section className="p2-category-wrapper">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            className={
+              activeCategory === tab.key
+                ? "p2-category-btn p2-category-active"
+                : "p2-category-btn"
+            }
+            onClick={() => setActiveCategory(tab.key)}
+          >
+            {tab.label}
+          </button>
         ))}
-      </div>
-    </div>
+      </section>
+
+      <section className="p2-menu-grid">
+        {displayMenus.length === 0 && (
+          <div className="p2-empty-menu">
+            ไม่พบเมนูในหมวดนี้ กรุณาเช็ก category ใน mockData.js
+          </div>
+        )}
+
+        {displayMenus.map((menu) => (
+          <button
+            key={menu.id}
+            type="button"
+            className="p2-menu-card"
+            onClick={() => onMenuClick(menu)}
+          >
+            <div className="p2-menu-image-box">
+              {menu.image ? (
+                <img
+                  className="p2-menu-image"
+                  src={menu.image}
+                  alt={menu.name}
+                  onError={(event) => {
+                    event.currentTarget.style.display = "none";
+                  }}
+                />
+              ) : (
+                <div className="p2-menu-image-placeholder">ใส่รูป</div>
+              )}
+            </div>
+
+            <p className="p2-menu-name">{menu.name}</p>
+          </button>
+        ))}
+      </section>
+    </main>
   );
 }
+
+export default OrderFood;
