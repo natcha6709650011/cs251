@@ -31,21 +31,23 @@ function Header({
           {employee?.EId || "-"}
         </button>
 
-        <button
-          type="button"
-          className="p1-header-pill"
-          onClick={onSelectTable}
-        >
-          {selectedTable?.TNumber || "เลือกโต๊ะ"}
-        </button>
-
-        <button
-          type="button"
-          className="p1-header-pill"
-          onClick={onSelectTable}
-        >
-          เลือกโต๊ะ
-        </button>
+        {selectedTable ? (
+          <button
+            type="button"
+            className="p1-header-pill"
+            onClick={onSelectTable}
+          >
+            {selectedTable.TNumber}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="p1-header-pill"
+            onClick={onSelectTable}
+          >
+            เลือกโต๊ะ
+          </button>
+        )}
       </div>
 
       <div className="p1-header-right">
