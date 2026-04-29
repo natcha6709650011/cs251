@@ -1,9 +1,14 @@
 import { useState } from "react";
 import Header from "./components/Header";
-import MemberLogin from "./pages/MemberLogin";
+import MemberRegister from "./pages/MemberRegister";
 
 function App() {
-  const [memberTel, setMemberTel] = useState("");
+  const [registerForm, setRegisterForm] = useState({
+    firstName: "",
+    lastName: "",
+    tel: "",
+    email: "",
+  });
 
   const employee = {
     EId: "M123456",
@@ -26,12 +31,11 @@ function App() {
         onBillClick={() => alert("บิล")}
       />
 
-      <MemberLogin
-        memberTel={memberTel}
-        setMemberTel={setMemberTel}
-        memberMode="order"
-        onSubmit={() => alert(`ค้นหาเบอร์ ${memberTel}`)}
-        onRegister={() => alert("ไปหน้าสมัครสมาชิก")}
+      <MemberRegister
+        registerForm={registerForm}
+        setRegisterForm={setRegisterForm}
+        onSubmit={() => alert(JSON.stringify(registerForm, null, 2))}
+        onBack={() => alert("กลับหน้ากรอกเบอร์สมาชิก")}
       />
     </>
   );
