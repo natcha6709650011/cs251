@@ -859,81 +859,187 @@
   text-align: center !important;
 }
 
-.p1-reservation-control {
-  width: min(920px, 94%);
-  margin: 34px auto 0;
-  background: #fff;
-  border: 1.5px solid #111;
-  border-radius: 18px;
-  padding: 28px 36px;
+.reservation-success-page {
+  min-height: calc(100vh - 110px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f6f3e8;
+  padding: 40px 20px;
+}
+
+.reservation-success-card {
+  width: 520px;
+  max-width: 90%;
+  background: #ffffff;
+  border: 1px solid #b7a6a6;
+  border-radius: 24px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  padding: 36px 32px;
   text-align: center;
-  box-shadow: 0 4px 9px rgba(0, 0, 0, 0.18);
 }
 
-.p1-reservation-title {
-  margin: 0 0 10px;
+.reservation-success-check {
+  font-size: 72px;
+  color: #67b35c;
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
+.reservation-success-title {
+  font-size: 40px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: #222;
+}
+
+.reservation-success-info {
   font-size: 28px;
+  color: #222;
+  line-height: 1.9;
+  margin-bottom: 28px;
 }
 
-.p1-reservation-customer {
-  margin: 0 0 24px;
-  font-size: 20px;
-}
-
-.p1-reservation-form {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 22px;
-  align-items: end;
-}
-
-.p1-reservation-label {
+.reservation-success-actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  font-size: 18px;
-  text-align: left;
-}
-
-.p1-reservation-input {
-  height: 46px;
-  border: 1.5px solid #111;
-  border-radius: 12px;
-  padding: 0 14px;
-  font-size: 18px;
-  background: #fff;
-}
-
-.p1-people-control {
-  height: 46px;
-  border: 1.5px solid #111;
-  border-radius: 12px;
-  background: #fff;
-  display: flex;
-  align-items: center;
+  align-items: center;   /* ทำให้ปุ่มอยู่กลาง */
   justify-content: center;
-  gap: 18px;
+  gap: 16px;
+  margin-top: 24px;
 }
 
-.p1-people-control button {
-  width: 34px;
-  height: 28px;
+.reservation-success-actions button {
+  width: 240px;
+  height: 52px;
   border: none;
-  border-radius: 8px;
-  background: #c81912;
-  color: #fff;
-  font-size: 20px;
+  border-radius: 14px;
+  font-size: 22px;
+  font-weight: 700;
   cursor: pointer;
 }
 
-.p1-people-control span {
-  min-width: 32px;
-  font-size: 22px;
-  font-weight: 600;
+.reservation-home-btn {
+  background: #5b8cff;
+  color: white;
 }
 
-@media (max-width: 800px) {
-  .p1-reservation-form {
-    grid-template-columns: 1fr;
+.reservation-history-btn {
+  background: #f3de59;
+  color: #222;
+}
+
+.p1-reserve-success-page {
+  min-height: calc(100vh - 120px);
+  background: #fff4e8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+}
+
+.p1-reserve-success-card {
+  width: 430px;
+  max-width: 92%;
+  background: #ffffff;
+  border: 1.5px solid #222;
+  border-radius: 20px;
+  padding: 26px 28px 30px;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.16);
+}
+
+.p1-reserve-success-check {
+  width: 74px;
+  height: 74px;
+  margin: 0 auto 14px;
+  border: 2.5px solid #2eac55;
+  border-radius: 50%;
+  color: #2eac55;
+  font-size: 46px;
+  font-weight: 600;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.p1-reserve-success-title {
+  margin: 0 0 14px;
+  font-size: 26px;
+  font-weight: 700;
+  color: #111;
+  text-align: center;
+}
+
+.p1-reserve-success-detail {
+  margin: 0 auto 22px;
+  font-size: 17px;
+  line-height: 1.65;
+  color: #111;
+  text-align: center;
+}
+
+.p1-reserve-success-detail p {
+  margin: 4px 0;
+}
+
+.p1-reserve-success-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ปุ่มทั้ง 2 ปุ่ม */
+.p1-reserve-success-btn {
+  width: 190px;
+  height: 44px;
+  border: none;
+  border-radius: 13px;
+  padding: 0;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.2);
+}
+
+.p1-reserve-success-btn:hover {
+  transform: translateY(-1px);
+}
+
+.p1-reserve-success-btn.home {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.p1-reserve-success-btn.history {
+  background: #ffe86b;
+  color: #111111;
+}
+
+@media (max-width: 700px) {
+  .p1-reserve-success-card {
+    width: 90%;
+    padding: 24px 20px 28px;
+  }
+
+  .p1-reserve-success-title {
+    font-size: 24px;
+  }
+
+  .p1-reserve-success-detail {
+    font-size: 16px;
+  }
+
+  .p1-reserve-success-btn {
+    width: 180px;
+    height: 42px;
+    font-size: 16px;
   }
 }
