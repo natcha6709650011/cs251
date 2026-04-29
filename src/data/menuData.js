@@ -58,8 +58,8 @@ export const menus = [
 
   // เครื่องดื่ม
   { id: 46, name: "น้ำเปล่า", image: "", category: "drink", optionType: "simple", price: 15 },
-  { id: 47, name: "น้ำส้มคั้นสด", image: "", category: "drink", optionType: "drink", price: 45 },
-  { id: 48, name: "น้ำมะนาว", image: "", category: "drink", optionType: "drink", price: 45 },
+  { id: 47, name: "น้ำส้มคั้นสด", image: "", category: "drink", optionType: "simple", price: 45 },
+  { id: 48, name: "น้ำมะนาว", image: "", category: "drink", optionType: "simple", price: 45 },
   { id: 49, name: "เป๊ปซี่", image: "", category: "drink", optionType: "simple", price: 25 },
   { id: 50, name: "ชามะนาว", image: "", category: "drink", optionType: "drink", price: 45 },
 

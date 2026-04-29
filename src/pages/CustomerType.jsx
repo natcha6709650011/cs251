@@ -1,4 +1,4 @@
-function CustomerType({ onGeneral, onMember, onReserve }) {
+function CustomerType({ onGeneral, onMember, onReserve, onReservationHistory }) {
   return (
     <main className="p1-page">
       <section className="p1-customer-type-page">
@@ -34,6 +34,14 @@ function CustomerType({ onGeneral, onMember, onReserve }) {
           onClick={onReserve}
         >
           reserve
+        </button>
+
+        <button
+          type="button"
+          className="p1-customer-btn p1-customer-history"
+          onClick={onReservationHistory}
+        >
+          ประวัติการจอง
         </button>
       </section>
     </main>

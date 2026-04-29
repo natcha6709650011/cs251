@@ -1,0 +1,863 @@
+.p3-page {
+  min-height: calc(100vh - 120px);
+  background: #fff4e8;
+  padding: 42px 54px 70px;
+}
+
+.p3-bill-card,
+.p3-payment-card,
+.p3-success-card {
+  width: min(920px, 94%);
+  margin: 0 auto;
+  background: #ffffff;
+  border: 1.5px solid #222;
+  border-radius: 22px;
+  padding: 34px 38px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.16);
+}
+
+.p3-title {
+  text-align: center;
+  font-size: 34px;
+  margin: 0 0 28px;
+  color: #111;
+}
+
+.p3-empty {
+  text-align: center;
+  font-size: 22px;
+  padding: 50px 0;
+}
+
+.p3-bill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.p3-bill-item {
+  display: grid;
+  grid-template-columns: 120px 1fr auto;
+  align-items: center;
+  gap: 18px;
+  border: 1px solid #ddd;
+  border-radius: 16px;
+  padding: 14px;
+  background: #fffdf8;
+}
+
+.p3-bill-img-box {
+  width: 110px;
+  height: 110px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f1f1f1;
+}
+
+.p3-bill-img-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.p3-img-placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #888;
+  font-size: 20px;
+}
+
+.p3-bill-info h3 {
+  margin: 0 0 8px;
+  font-size: 24px;
+}
+
+.p3-option-text {
+  margin: 4px 0;
+  font-size: 16px;
+  color: #555;
+}
+
+.p3-bill-price {
+  text-align: right;
+  font-size: 18px;
+}
+
+.p3-bill-price strong {
+  font-size: 22px;
+}
+
+.p3-bill-total,
+.p3-payment-total {
+  margin: 28px 0;
+  padding: 20px 24px;
+  border-radius: 16px;
+  background: #f4f4f4;
+  display: flex;
+  justify-content: space-between;
+  font-size: 26px;
+}
+
+.p3-bill-total strong,
+.p3-payment-total strong {
+  color: #c81912;
+}
+
+.p3-actions-row {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.p3-btn {
+  min-width: 170px;
+  height: 48px;
+  border: none;
+  border-radius: 14px;
+  padding: 0 22px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.2);
+}
+
+.p3-btn-gray {
+  background: #d9d9d9;
+  color: #111;
+}
+
+.p3-btn-green {
+  background: #2eac55;
+  color: white;
+}
+
+.p3-btn-blue {
+  background: #3b82f6;
+  color: white;
+}
+
+.p3-btn-yellow {
+  background: #ffe86b;
+  color: #111;
+}
+
+.p3-payment-detail {
+  font-size: 22px;
+  line-height: 1.8;
+  margin-bottom: 22px;
+}
+
+.p3-payment-detail p {
+  margin: 8px 0;
+}
+
+.p3-success-card {
+  width: 520px;
+  max-width: 92%;
+  text-align: center;
+  margin-top: 70px;
+}
+
+.p3-success-icon {
+  width: 84px;
+  height: 84px;
+  margin: 0 auto 18px;
+  border: 3px solid #2eac55;
+  border-radius: 50%;
+  color: #2eac55;
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.p3-success-title {
+  font-size: 32px;
+  margin: 0 0 12px;
+}
+
+.p3-success-text {
+  font-size: 20px;
+  margin: 0 0 22px;
+}
+
+.p3-review-link-box {
+  width: 280px;
+  margin: 0 auto 22px;
+  padding: 16px;
+  border: 1.5px dashed #111;
+  border-radius: 16px;
+  background: #fffdf8;
+}
+
+.p3-review-link-box p {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.p3-review-link-box strong {
+  font-size: 24px;
+  color: #c81912;
+}
+
+.p3-mt {
+  margin-top: 14px;
+}
+
+/* =========================
+   Person 3: Review Phone
+   ========================= */
+
+.p3-review-phone {
+  width: 390px;
+  min-height: 100vh;
+  margin: 0 auto;
+  background: #fff4e8;
+  color: #111;
+}
+
+.p3-review-topbar {
+  height: 92px;
+  background: #c81912;
+}
+
+.p3-review-container {
+  padding: 26px 24px 36px;
+  text-align: center;
+}
+
+.p3-review-title {
+  font-size: 20px;
+  line-height: 1.25;
+  margin: 0 0 18px;
+  font-weight: 700;
+}
+
+.p3-review-logo {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  margin: 0 auto 18px;
+  overflow: hidden;
+  background: #1f3655;
+}
+
+.p3-review-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.p3-review-customer {
+  font-size: 16px;
+  margin: 0 0 18px;
+}
+
+.p3-review-section-title {
+  text-align: left;
+  font-size: 18px;
+  margin: 18px 0 12px;
+}
+
+.p3-review-menu {
+  margin-bottom: 22px;
+}
+
+.p3-review-menu p,
+.p3-review-employee p,
+.p3-review-topic p {
+  font-size: 16px;
+  margin: 0 0 10px;
+}
+
+.p3-review-menu-img {
+  width: 118px;
+  height: 118px;
+  border-radius: 14px;
+  overflow: hidden;
+  margin: 0 auto 12px;
+  background: #f1f1f1;
+}
+
+.p3-review-menu-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.p3-review-img-placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #888;
+}
+
+.p3-stars {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.p3-star {
+  border: none;
+  background: transparent;
+  font-size: 34px;
+  color: #e7eef9;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.p3-star.active {
+  color: #ffe86b;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.p3-review-divider {
+  border-top: 1px solid #111;
+  margin: 22px 0;
+}
+
+.p3-review-employee-img {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  margin: 0 auto 12px;
+  overflow: hidden;
+  background: #f1f1f1;
+  display: grid;
+  place-items: center;
+  font-size: 46px;
+}
+
+.p3-review-employee-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.p3-review-topic {
+  margin: 20px 0;
+}
+
+.p3-review-comment {
+  width: 100%;
+  min-height: 88px;
+  border: 1.5px solid #ccc;
+  border-radius: 14px;
+  padding: 12px;
+  font-size: 15px;
+  resize: vertical;
+  margin: 18px 0;
+}
+
+.p3-review-submit {
+  width: 210px;
+  height: 44px;
+  border: 1.5px solid #111;
+  border-radius: 14px;
+  background: #2eac55;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.p3-thank-card {
+  min-height: calc(100vh - 92px);
+  padding: 90px 28px 0;
+  text-align: center;
+}
+
+.p3-thank-icon {
+  width: 104px;
+  height: 104px;
+  margin: 0 auto 22px;
+  border: 3px solid #2eac55;
+  border-radius: 50%;
+  color: #2eac55;
+  font-size: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.p3-thank-card h1 {
+  font-size: 22px;
+  margin: 0 0 16px;
+}
+
+.p3-thank-card p {
+  font-size: 20px;
+}
+
+@media (max-width: 800px) {
+  .p3-page {
+    padding: 28px 20px 60px;
+  }
+
+  .p3-bill-item {
+    grid-template-columns: 90px 1fr;
+  }
+
+  .p3-bill-price {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+
+  .p3-bill-img-box {
+    width: 86px;
+    height: 86px;
+  }
+
+  .p3-bill-total,
+  .p3-payment-total {
+    font-size: 20px;
+  }
+}
+/* =========================
+   Bill Page แบบ Figma
+   ========================= */
+
+.p3-bill-page {
+  min-height: calc(100vh - 120px);
+  background: #fff4e8;
+  padding: 34px 56px 54px;
+}
+
+.p3-bill-layout {
+  width: min(1120px, 96%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 48px;
+  align-items: center;
+}
+
+.p3-bill-left {
+  width: 100%;
+}
+
+.p3-bill-heading {
+  font-size: 34px;
+  font-weight: 500;
+  margin: 0 0 22px;
+  color: #111;
+}
+
+.p3-bill-order-box {
+  width: 100%;
+  height: 620px;
+  border: 1.5px solid #111;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.4);
+  padding: 20px 20px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.p3-bill-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.p3-bill-scroll::-webkit-scrollbar {
+  width: 18px;
+}
+
+.p3-bill-scroll::-webkit-scrollbar-track {
+  background: #d8d8d8;
+  border-radius: 20px;
+}
+
+.p3-bill-scroll::-webkit-scrollbar-thumb {
+  background: #686b75;
+  border-radius: 20px;
+  border: 4px solid #d8d8d8;
+}
+
+.p3-bill-scroll::-webkit-scrollbar-button {
+  height: 18px;
+  background: #d8d8d8;
+}
+
+.p3-bill-order-card {
+  min-height: 150px;
+  border: 1.4px solid #999;
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 26px;
+  align-items: center;
+}
+
+.p3-bill-order-img {
+  width: 140px;
+  height: 120px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f0f0f0;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  color: #777;
+}
+
+.p3-bill-order-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.p3-bill-order-info {
+  font-size: 18px;
+  color: #111;
+}
+
+.p3-bill-order-row {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 18px;
+  margin: 4px 0;
+  align-items: start;
+}
+
+.p3-bill-order-row span {
+  font-weight: 500;
+}
+
+.p3-bill-order-row p,
+.p3-bill-order-row strong {
+  margin: 0;
+  font-weight: 500;
+}
+
+.p3-bill-total-line {
+  height: 94px;
+  border-top: 0;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  column-gap: 34px;
+  padding: 0 34px 0 12px;
+  font-size: 30px;
+  color: #111;
+}
+
+.p3-bill-total-line strong {
+  font-size: 32px;
+  font-weight: 500;
+}
+
+.p3-bill-payment-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 52px;
+  align-items: center;
+  justify-content: center;
+  padding-top: 90px;
+}
+
+.p3-payment-method {
+  width: 220px;
+  height: 120px;
+  border: 1.6px solid #111;
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.p3-payment-cash {
+  background: #34a853;
+}
+
+.p3-payment-qr {
+  background: #9747ff;
+}
+
+.p3-payment-card {
+  background: #5b87db;
+}
+
+.p3-bill-confirm-btn {
+  display: block;
+  width: 180px;
+  height: 44px;
+  margin: 18px auto 0;
+  border: none;
+  border-radius: 12px;
+  background: #d9c5a4;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.p3-bill-back-btn {
+  position: fixed;
+  left: 28px;
+  bottom: 24px;
+  height: 42px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 12px;
+  background: #d9d9d9;
+  color: #111;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.p3-bill-empty {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  color: #666;
+}
+
+@media (max-width: 900px) {
+  .p3-bill-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .p3-bill-payment-panel {
+    flex-direction: row;
+    gap: 18px;
+    padding-top: 0;
+    flex-wrap: wrap;
+  }
+
+  .p3-payment-method {
+    width: 190px;
+    height: 90px;
+    font-size: 20px;
+  }
+}
+/* =========================
+   Mobile Review Page
+========================= */
+
+.p3-review-phone {
+  width: 100%;
+  min-height: 100vh;
+  background: #fff4e8;
+  display: flex;
+  justify-content: center;
+}
+
+.p3-review-mobile-frame {
+  width: 390px;
+  max-width: 100%;
+  min-height: 100vh;
+  background: #fff4e8;
+  color: #111;
+}
+
+.p3-review-topbar {
+  width: 100%;
+  height: 88px;
+  background: #c81912;
+  border-bottom-left-radius: 28px;
+  border-bottom-right-radius: 28px;
+}
+
+.p3-review-container {
+  padding: 24px 22px 36px;
+  text-align: center;
+}
+
+.p3-review-title {
+  font-size: 22px;
+  line-height: 1.35;
+  font-weight: 700;
+  margin: 0 0 18px;
+}
+
+.p3-review-logo {
+  width: 115px;
+  height: 115px;
+  margin: 0 auto 16px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #1f3655;
+  display: grid;
+  place-items: center;
+}
+
+.p3-review-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.p3-review-customer {
+  font-size: 16px;
+  margin: 0 0 18px;
+}
+
+.p3-review-section-title {
+  text-align: left;
+  font-size: 19px;
+  font-weight: 700;
+  margin: 24px 0 14px;
+}
+
+.p3-review-menu,
+.p3-review-employee,
+.p3-review-topic {
+  background: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.p3-review-menu p,
+.p3-review-employee p,
+.p3-review-topic p {
+  font-size: 16px;
+  margin: 0 0 10px;
+  font-weight: 500;
+}
+
+.p3-review-menu-img {
+  width: 118px;
+  height: 118px;
+  border-radius: 14px;
+  overflow: hidden;
+  margin: 0 auto 12px;
+  background: #f1f1f1;
+}
+
+.p3-review-menu-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.p3-review-img-placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #888;
+}
+
+.p3-review-employee-img {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  margin: 0 auto 12px;
+  overflow: hidden;
+  background: #f1f1f1;
+  display: grid;
+  place-items: center;
+  font-size: 42px;
+}
+
+.p3-review-employee-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.p3-stars {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.p3-star {
+  border: none;
+  background: transparent;
+  font-size: 32px;
+  color: #e4e4e4;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.p3-star.active {
+  color: #ffe86b;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.p3-review-divider {
+  border-top: 1px solid #ddd;
+  margin: 22px 0;
+}
+
+.p3-review-comment {
+  width: 100%;
+  min-height: 96px;
+  border: 1.5px solid #ccc;
+  border-radius: 14px;
+  padding: 12px;
+  font-size: 15px;
+  resize: vertical;
+  margin: 16px 0 20px;
+  box-sizing: border-box;
+}
+
+.p3-review-submit {
+  width: 220px;
+  height: 46px;
+  border: none;
+  border-radius: 14px;
+  background: #2eac55;
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 430px) {
+  .p3-review-mobile-frame {
+    width: 100%;
+  }
+
+  .p3-review-container {
+    padding: 22px 18px 34px;
+  }
+
+  .p3-review-title {
+    font-size: 20px;
+  }
+
+  .p3-star {
+    font-size: 30px;
+  }
+}
+.p3-qr-box {
+  width: 220px;
+  height: 220px;
+  margin: 18px auto;
+  background: #ffffff;
+  border: 1.5px solid #222;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.p3-success-card {
+  text-align: center;
+}

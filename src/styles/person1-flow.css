@@ -1415,3 +1415,326 @@
   align-items: center !important;
   justify-content: center !important;
 }
+
+/* =========================
+   Page base
+========================= */
+.p1-page {
+  width: 100%;
+  min-height: 100vh;
+  background: #f3efe4;
+  padding-bottom: 40px;
+}
+
+/* =========================
+   Reservation Page
+========================= */
+.p1-reservation-page {
+  width: min(1200px, 94%);
+  margin: 28px auto 0;
+}
+
+.p1-reservation-title {
+  font-size: 38px;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 10px;
+}
+
+.p1-reservation-customer {
+  font-size: 20px;
+  color: #222;
+  margin: 0 0 20px;
+}
+
+.p1-reservation-form {
+  width: 100%;
+  background: #ffffff;
+  border: 1.5px solid #222;
+  border-radius: 18px;
+  padding: 22px 24px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-bottom: 30px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+
+.p1-reservation-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.p1-reservation-field label {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111;
+}
+
+.p1-reservation-field input {
+  height: 48px;
+  border: 1.5px solid #bbb;
+  border-radius: 12px;
+  padding: 0 14px;
+  font-size: 17px;
+  background: #fff;
+  outline: none;
+}
+
+.p1-reservation-field input:focus {
+  border-color: #c0392b;
+}
+
+.p1-reservation-table-title {
+  font-size: 34px;
+  font-weight: 700;
+  text-align: center;
+  color: #111;
+  margin: 8px 0 28px;
+}
+
+/* =========================
+   Table Grid
+========================= */
+.p1-table-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 42px;
+}
+
+.p1-table-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.p1-table-size-box {
+  width: 130px;
+  min-width: 130px;
+  height: 188px;
+  background: #4f7ae6;
+  color: #fff;
+  font-size: 54px;
+  font-weight: 600;
+  border-radius: 24px 0 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.p1-table-row-content {
+  flex: 1;
+  background: #f2df72;
+  min-height: 188px;
+  border-radius: 0 24px 24px 0;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 18px;
+  flex-wrap: nowrap;
+}
+
+.p1-table-card {
+  width: 180px;
+  height: 180px;
+  border: none;
+  border-radius: 24px;
+  background: #f7f7f7;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.p1-table-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+}
+
+.p1-table-card-occupied {
+  background: #e0e0e0;
+  color: #888;
+  cursor: not-allowed;
+}
+
+.p1-table-id {
+  font-size: 34px;
+  font-weight: 500;
+  color: #111;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+
+.p1-table-status {
+  font-size: 20px;
+  font-weight: 400;
+  color: #555;
+}
+
+/* =========================
+   Responsive
+========================= */
+@media (max-width: 1100px) {
+  .p1-reservation-form {
+    grid-template-columns: 1fr;
+  }
+
+  .p1-table-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .p1-table-size-box {
+    width: 100%;
+    min-width: 100%;
+    height: 90px;
+    border-radius: 24px 24px 0 0;
+    font-size: 42px;
+  }
+
+  .p1-table-row-content {
+    border-radius: 0 0 24px 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 18px;
+  }
+
+  .p1-table-card {
+    width: 150px;
+    height: 150px;
+  }
+
+  .p1-table-id {
+    font-size: 28px;
+  }
+
+  .p1-table-status {
+    font-size: 18px;
+  }
+}
+
+.p1-table-disabled {
+  opacity: 0.55;
+  cursor: not-allowed !important;
+}
+
+.p1-table-disabled:hover {
+  transform: none !important;
+}
+
+.p1-customer-history {
+  margin-top: 18px;
+  width: 190px;
+  height: 48px;
+  background: #3b82f6;
+  color: #ffffff;
+  font-size: 18px;
+}
+
+/* เพิ่มปุ่มประวัติการจองในหน้าเลือกประเภทลูกค้า */
+.p1-customer-history {
+  margin-top: 18px;
+  width: 190px;
+  height: 48px;
+  background: #3b82f6;
+  color: #ffffff;
+  font-size: 18px;
+}
+
+/* Filter วันที่ในหน้า ReservationHistory */
+.p1-history-customer {
+  font-size: 20px;
+  margin: 0 0 18px;
+  color: #111;
+}
+
+.p1-history-filter {
+  width: 100%;
+  background: #ffffff;
+  border: 1.5px solid #222;
+  border-radius: 16px;
+  padding: 18px 22px;
+  margin-bottom: 26px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.p1-history-filter label {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.p1-history-filter input {
+  height: 42px;
+  border: 1.5px solid #aaa;
+  border-radius: 12px;
+  padding: 0 14px;
+  font-size: 16px;
+}
+
+.p1-history-clear-btn {
+  height: 42px;
+  border: none;
+  border-radius: 12px;
+  padding: 0 18px;
+  background: #d9d9d9;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.p1-history-bottom {
+  display: flex;
+  justify-content: center;
+  margin-top: 26px;
+}
+
+.p1-btn-gray {
+  min-width: 230px;
+  height: 44px;
+  border: none;
+  border-radius: 13px;
+  background: #d9d9d9;
+  color: #111;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.p1-btn-green {
+  background: #2eac55;
+  color: #ffffff;
+}
+
+.p1-btn-red {
+  background: #c81912;
+  color: #ffffff;
+}
+
+.p1-history-popup-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.p1-history-popup-btn-green {
+  background: #2eac55;
+  color: #ffffff;
+}
+
+.p1-history-popup-btn-gray {
+  background: #d9d9d9;
+  color: #111111;
+}
+
+.p1-customer-history {
+  background: #2eac55 !important;
+  color: #ffffff !important;
+}

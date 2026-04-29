@@ -1,8 +1,40 @@
 import TableGrid from "../components/TableGrid";
 
+const RESERVATION_DURATION_MINUTES = 90;
+
+function timeToMinutes(time) {
+  if (!time) return 0;
+
+  const [hour, minute] = time.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function isTimeOverlap(startA, endA, startB, endB) {
+  return startA < endB && startB < endA;
+}
+
+function reservationIsActive(reservation) {
+  return (
+    reservation.status === "reserved" || reservation.status === "checked_in"
+  );
+}
+
+function reservationOverlapsSelectedTime(reservation, date, startMinutes, endMinutes) {
+  if (!reservationIsActive(reservation)) return false;
+  if (reservation.RDate !== date) return false;
+
+  const oldStart = timeToMinutes(reservation.RTime);
+  const oldDuration =
+    reservation.durationMinutes || RESERVATION_DURATION_MINUTES;
+  const oldEnd = oldStart + oldDuration;
+
+  return isTimeOverlap(startMinutes, endMinutes, oldStart, oldEnd);
+}
+
 function ReservationPage({
   customer,
   tables = [],
+  reservations = [],
   reservationDate,
   setReservationDate,
   reservationTime,
@@ -11,76 +43,117 @@ function ReservationPage({
   setPeopleCount,
   onCreateReservation,
 }) {
-  const emptyTables = tables.filter((table) => table.Status === "ว่าง");
+  const selectedDate = reservationDate || "";
+  const selectedTime = reservationTime || "";
+
+  const selectedStart = timeToMinutes(selectedTime);
+  const selectedEnd = selectedStart + RESERVATION_DURATION_MINUTES;
+
+  const reservedTableNumbers = reservations
+    .filter((reservation) => {
+      if (!selectedDate || !selectedTime) return false;
+
+      return reservationOverlapsSelectedTime(
+        reservation,
+        selectedDate,
+        selectedStart,
+        selectedEnd
+      );
+    })
+    .map((reservation) => reservation.tableNumber);
+
+  /*
+    หน้าจอง:
+    - ไม่สนใจ Status จากการบริการปกติ
+    - ไม่โชว์รหัสพนักงาน
+    - Full เฉพาะโต๊ะที่มี reservation ทับช่วงวัน+เวลาที่เลือก
+  */
+  const displayTables = tables.map((table) => {
+    const isReservedAtSelectedTime = reservedTableNumbers.includes(
+      table.TNumber
+    );
+
+    return {
+      ...table,
+      Status: isReservedAtSelectedTime ? "ไม่ว่าง" : "ว่าง",
+      reservedByTime: isReservedAtSelectedTime,
+      employeeId: "",
+      employeeIds: [],
+    };
+  });
 
   function handleTableClick(table) {
+    if (!selectedDate || !selectedTime || !peopleCount) {
+      alert("กรุณาเลือกวันที่ เวลา และจำนวนผู้เข้าใช้ก่อน");
+      return;
+    }
+
+    if (table.reservedByTime) {
+      alert("โต๊ะนี้ถูกจองแล้วในช่วงเวลาที่เลือก");
+      return;
+    }
+
     onCreateReservation({
       table,
-      date: reservationDate,
-      time: reservationTime,
+      date: selectedDate,
+      time: selectedTime,
       count: peopleCount,
     });
   }
 
   return (
     <main className="p1-page">
-      <section className="p1-reservation-control">
-        <h1 className="p1-reservation-title">เลือกวัน เวลา และโต๊ะสำหรับจอง</h1>
+      <section className="p1-reservation-page">
+        <h1 className="p1-reservation-title">
+          เลือกวัน เวลา และโต๊ะสำหรับจอง
+        </h1>
 
-        {customer && (
-          <p className="p1-reservation-customer">
-            ลูกค้า: {customer.MFirstName} {customer.MSurName}
-          </p>
-        )}
+        <p className="p1-reservation-customer">
+          ลูกค้า: {customer?.MFirstName || "-"} {customer?.MSurName || ""}
+        </p>
 
         <div className="p1-reservation-form">
-          <label className="p1-reservation-label">
-            วันที่จอง
+          <div className="p1-reservation-field">
+            <label htmlFor="reservation-date">วันที่จอง</label>
             <input
-              className="p1-reservation-input"
+              id="reservation-date"
               type="date"
-              value={reservationDate}
+              value={selectedDate}
               onChange={(event) => setReservationDate(event.target.value)}
             />
-          </label>
+          </div>
 
-          <label className="p1-reservation-label">
-            เวลาจอง
+          <div className="p1-reservation-field">
+            <label htmlFor="reservation-time">เวลาจอง</label>
             <input
-              className="p1-reservation-input"
+              id="reservation-time"
               type="time"
-              value={reservationTime}
+              value={selectedTime}
               onChange={(event) => setReservationTime(event.target.value)}
             />
-          </label>
+          </div>
 
-          <label className="p1-reservation-label">
-            จำนวนผู้เข้าใช้
-            <div className="p1-people-control">
-              <button
-                type="button"
-                onClick={() => setPeopleCount(Math.max(1, peopleCount - 1))}
-              >
-                -
-              </button>
-
-              <span>{peopleCount}</span>
-
-              <button
-                type="button"
-                onClick={() => setPeopleCount(peopleCount + 1)}
-              >
-                +
-              </button>
-            </div>
-          </label>
+          <div className="p1-reservation-field">
+            <label htmlFor="people-count">จำนวนผู้เข้าใช้</label>
+            <input
+              id="people-count"
+              type="number"
+              min="1"
+              value={peopleCount || 1}
+              onChange={(event) => setPeopleCount(Number(event.target.value))}
+            />
+          </div>
         </div>
-      </section>
 
-      <section className="p1-section">
-        <h2 className="p1-page-title">เลือกโต๊ะที่ต้องการจอง</h2>
+        <h2 className="p1-reservation-table-title">
+          เลือกโต๊ะที่ต้องการจอง
+        </h2>
 
-        <TableGrid tables={emptyTables} onTableClick={handleTableClick} />
+        <TableGrid
+          tables={displayTables}
+          onTableClick={handleTableClick}
+          mode="reservation"
+        />
       </section>
     </main>
   );

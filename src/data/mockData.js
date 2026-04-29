@@ -22,25 +22,25 @@ export const mockData = {
     },
   ],
 
-  tables: [
-    { TNumber: "S1", T_Type: "S", Status: "ว่าง", employeeId: "" },
-    { TNumber: "S2", T_Type: "S", Status: "ว่าง", employeeId: "" },
-    { TNumber: "S3", T_Type: "S", Status: "ว่าง", employeeId: "" },
-    { TNumber: "S4", T_Type: "S", Status: "ไม่ว่าง", employeeId: "M123456" },
-    { TNumber: "S5", T_Type: "S", Status: "ไม่ว่าง", employeeId: "M123456" },
+ tables: [
+  { TNumber: "S1", T_Type: "S", Status: "ว่าง", employeeId: "" },
+  { TNumber: "S2", T_Type: "S", Status: "ว่าง", employeeId: "" },
+  { TNumber: "S3", T_Type: "S", Status: "ว่าง", employeeId: "" },
+  { TNumber: "S4", T_Type: "S", Status: "ว่าง", employeeId: "" },
+  { TNumber: "S5", T_Type: "S", Status: "ว่าง", employeeId: "" },
 
-    { TNumber: "M1", T_Type: "M", Status: "ว่าง", employeeId: "" },
-    { TNumber: "M2", T_Type: "M", Status: "ว่าง", employeeId: "" },
-    { TNumber: "M3", T_Type: "M", Status: "ว่าง", employeeId: "" },
-    { TNumber: "M4", T_Type: "M", Status: "ว่าง", employeeId: "" },
-    { TNumber: "M5", T_Type: "M", Status: "ว่าง", employeeId: "" },
+  { TNumber: "M1", T_Type: "M", Status: "ว่าง", employeeId: "" },
+  { TNumber: "M2", T_Type: "M", Status: "ว่าง", employeeId: "" },
+  { TNumber: "M3", T_Type: "M", Status: "ว่าง", employeeId: "" },
+  { TNumber: "M4", T_Type: "M", Status: "ว่าง", employeeId: "" },
+  { TNumber: "M5", T_Type: "M", Status: "ว่าง", employeeId: "" },
 
-    { TNumber: "L1", T_Type: "L", Status: "ว่าง", employeeId: "" },
-    { TNumber: "L2", T_Type: "L", Status: "ว่าง", employeeId: "" },
-    { TNumber: "L3", T_Type: "L", Status: "ไม่ว่าง", employeeId: "M123456" },
-    { TNumber: "L4", T_Type: "L", Status: "ไม่ว่าง", employeeId: "M123456" },
-    { TNumber: "L5", T_Type: "L", Status: "ไม่ว่าง", employeeId: "M123456" },
-  ],
+  { TNumber: "L1", T_Type: "L", Status: "ว่าง", employeeId: "" },
+  { TNumber: "L2", T_Type: "L", Status: "ว่าง", employeeId: "" },
+  { TNumber: "L3", T_Type: "L", Status: "ว่าง", employeeId: "" },
+  { TNumber: "L4", T_Type: "L", Status: "ว่าง", employeeId: "" },
+  { TNumber: "L5", T_Type: "L", Status: "ว่าง", employeeId: "" },
+],
 
   menus,
 
