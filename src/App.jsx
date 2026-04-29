@@ -1,5 +1,5 @@
 import Header from "./components/Header";
-import ReservationSuccess from "./pages/ReservationSuccess";
+import ReservationHistory from "./pages/ReservationHistory";
 
 function App() {
   const employee = {
@@ -19,15 +19,17 @@ function App() {
     MEmail: "member@email.com",
   };
 
-  const reservation = {
-    RId: "R001",
-    customerId: "MB0002",
-    tableNumber: "M5",
-    RDate: "2026-04-29",
-    RTime: "09:51",
-    PeopleCount: 3,
-    status: "reserved",
-  };
+  const reservations = [
+    {
+      RId: "R001",
+      customerId: "MB0002",
+      tableNumber: "M5",
+      RDate: "2026-04-29",
+      RTime: "09:51",
+      PeopleCount: 3,
+      status: "reserved",
+    },
+  ];
 
   return (
     <>
@@ -41,11 +43,18 @@ function App() {
         onBillClick={() => alert("บิล")}
       />
 
-      <ReservationSuccess
+      <ReservationHistory
         customer={customer}
-        reservation={reservation}
-        onHome={() => alert("กลับหน้าเลือกประเภทลูกค้า")}
-        onHistory={() => alert("ไปหน้าประวัติการจอง")}
+        reservations={reservations}
+        onCheckIn={(reservation) =>
+          alert(`Check-in โต๊ะ ${reservation.tableNumber}`)
+        }
+        onCancel={(reservation) =>
+          alert(`ยกเลิกการจองโต๊ะ ${reservation.tableNumber}`)
+        }
+        onBack={() => alert("กลับหน้าหลัก")}
+        isToday={() => true}
+        isFutureDate={() => true}
       />
     </>
   );
