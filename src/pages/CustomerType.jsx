@@ -1,15 +1,14 @@
-function CustomerType({ employee, onGeneral, onMember, onReserve }) {
+function CustomerType({ onGeneral, onMember, onReserve }) {
   return (
     <main className="p1-page">
       <section className="p1-customer-type-page">
-    <div className="p1-restaurant-logo">
-        <img
-        className="p1-restaurant-logo-img"
-        src="/images/logo.jpg"
-        alt="CS Restaurant Logo"
-        />
-    </div>
-            
+        <div className="p1-restaurant-logo">
+          <img
+            className="p1-restaurant-logo-img"
+            src="/image/logo.jpg"
+            alt="CS Restaurant Logo"
+          />
+        </div>
 
         <div className="p1-customer-buttons">
           <button
@@ -36,12 +35,6 @@ function CustomerType({ employee, onGeneral, onMember, onReserve }) {
         >
           reserve
         </button>
-
-        {employee && (
-          <p className="p1-current-employee">
-            พนักงาน: {employee.EFirstName} {employee.ESurName} ({employee.EId})
-          </p>
-        )}
       </section>
     </main>
   );
