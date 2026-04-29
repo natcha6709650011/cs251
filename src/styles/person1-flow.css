@@ -225,3 +225,91 @@
     font-size: 20px;
   }
 }
+
+.p1-page {
+  min-height: calc(100vh - 120px);
+  background: #fff4e8;
+  padding: 28px 0 60px;
+}
+
+.p1-section {
+  width: 100%;
+}
+
+.p1-page-title {
+  margin: 18px auto 26px;
+  text-align: center;
+  font-size: 32px;
+  font-weight: 600;
+  color: #111;
+}
+
+.p1-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 24px;
+}
+
+.p1-employee-modal {
+  position: relative;
+  width: 430px;
+  max-width: 100%;
+  background: #fff;
+  border-radius: 18px;
+  padding: 52px 36px 34px;
+  text-align: center;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
+}
+
+.p1-modal-close {
+  position: absolute;
+  right: 18px;
+  top: 14px;
+  border: none;
+  background: transparent;
+  font-size: 36px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.p1-modal-avatar {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: #f3f3f3;
+  margin: 0 auto 18px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-size: 42px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.22);
+}
+
+.p1-modal-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.p1-modal-title {
+  margin: 0 0 14px;
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.p1-modal-text {
+  margin: 7px 0;
+  font-size: 20px;
+}
+
+.p1-modal-actions {
+  margin-top: 28px;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
