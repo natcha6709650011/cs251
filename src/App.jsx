@@ -1,12 +1,14 @@
 import { useState } from "react";
-import Header from "./components/Header";
-import EmployeeModal from "./components/EmployeeModal";
-import ServiceTable from "./pages/ServiceTable";
+import EmployeeLogin from "./pages/EmployeeLogin";
+import EmployeeConfirm from "./pages/EmployeeConfirm";
+import EmployeeSuccess from "./pages/EmployeeSuccess";
 
 function App() {
-  const [showModal, setShowModal] = useState(false);
+  const [page, setPage] = useState("login");
+  const [employeeId, setEmployeeId] = useState("");
+  const [employee, setEmployee] = useState(null);
 
-  const employee = {
+  const mockEmployee = {
     EId: "M123456",
     EFirstName: "ขยัน",
     ESurName: "รักดี",
@@ -15,50 +17,47 @@ function App() {
     avatar: "",
   };
 
-  const tables = [
-    { TNumber: "S1", T_Type: "S", Status: "ว่าง", employeeId: "" },
-    { TNumber: "S2", T_Type: "S", Status: "ว่าง", employeeId: "" },
-    { TNumber: "S3", T_Type: "S", Status: "ว่าง", employeeId: "" },
-    { TNumber: "S4", T_Type: "S", Status: "ไม่ว่าง", employeeId: "M123456" },
-    { TNumber: "S5", T_Type: "S", Status: "ไม่ว่าง", employeeId: "M123456" },
+  function handleLogin() {
+    if (employeeId.trim() !== "M123456") {
+      alert("ไม่พบข้อมูลพนักงาน");
+      return;
+    }
 
-    { TNumber: "M1", T_Type: "M", Status: "ว่าง", employeeId: "" },
-    { TNumber: "M2", T_Type: "M", Status: "ว่าง", employeeId: "" },
-    { TNumber: "M3", T_Type: "M", Status: "ว่าง", employeeId: "" },
-    { TNumber: "M4", T_Type: "M", Status: "ว่าง", employeeId: "" },
-    { TNumber: "M5", T_Type: "M", Status: "ว่าง", employeeId: "" },
+    setEmployee(mockEmployee);
+    setPage("confirm");
+  }
 
-    { TNumber: "L1", T_Type: "L", Status: "ว่าง", employeeId: "" },
-    { TNumber: "L2", T_Type: "L", Status: "ว่าง", employeeId: "" },
-    { TNumber: "L3", T_Type: "L", Status: "ไม่ว่าง", employeeId: "M123456" },
-    { TNumber: "L4", T_Type: "L", Status: "ไม่ว่าง", employeeId: "M123456" },
-    { TNumber: "L5", T_Type: "L", Status: "ไม่ว่าง", employeeId: "M123456" },
-  ];
+  function handleLogout() {
+    setEmployeeId("");
+    setEmployee(null);
+    setPage("login");
+  }
 
   return (
     <>
-      <Header
-        employee={employee}
-        selectedTable={{ TNumber: "M5" }}
-        cartCount={3}
-        onEmployeeClick={() => setShowModal(true)}
-        onSelectTable={() => alert("เลือกโต๊ะ")}
-        onCartClick={() => alert("ตะกร้า")}
-        onBillClick={() => alert("บิล")}
-      />
-
-      {showModal && (
-        <EmployeeModal
-          employee={employee}
-          onClose={() => setShowModal(false)}
-          onLogout={() => alert("ออกจากระบบ")}
+      {page === "login" && (
+        <EmployeeLogin
+          employeeId={employeeId}
+          setEmployeeId={setEmployeeId}
+          onLogin={handleLogin}
         />
       )}
 
-      <ServiceTable
-        tables={tables}
-        onTableClick={(table) => alert(`เลือกโต๊ะ ${table.TNumber}`)}
-      />
+      {page === "confirm" && (
+        <EmployeeConfirm
+          employee={employee}
+          onConfirm={() => setPage("success")}
+          onLogout={handleLogout}
+        />
+      )}
+
+      {page === "success" && (
+        <EmployeeSuccess
+          employee={employee}
+          onNext={() => alert("ไปหน้าเลือกประเภทลูกค้า")}
+          onLogout={handleLogout}
+        />
+      )}
     </>
   );
 }
