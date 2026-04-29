@@ -1399,3 +1399,19 @@
 .p1-customer-btn:hover {
   transform: translateY(-2px);
 }
+
+.p1-success-icon {
+  width: 84px !important;
+  height: 84px !important;
+  margin: 0 auto 20px !important;
+  border: 3px solid #2eac55 !important;
+  border-radius: 50% !important;
+  color: #2eac55 !important;
+  background: #ffffff !important;
+  font-size: 52px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
