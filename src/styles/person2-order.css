@@ -145,3 +145,154 @@
     grid-template-columns: repeat(3, 1fr);
   }
 }
+/* การจัดวางภาพรวม */
+.p2-detail-main-content {
+  display: flex; /* แบ่งซ้าย-ขวา */
+  gap: 100px;
+  padding: 40px 80px;
+  align-items: flex-start;
+}
+
+.p2-detail-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.p2-detail-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* ให้ข้อความชิดซ้ายเพื่อให้อยู่ใกล้รูป */
+}
+
+/* ตกแต่งรูปภาพ */
+.p2-detail-img-wrapper {
+  width: 100%;
+  max-width: 450px;
+  aspect-ratio: 1/1;
+  border-radius: 30px; /* มนๆ ตามรูป */
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+.p2-detail-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* หัวข้อตัวเลือก (แถบสีแดงมนๆ) */
+.p2-option-header {
+  background-color: #A52A2A; /* สีน้ำตาลแดง */
+  color: white;
+  display: inline-block;
+  padding: 6px 25px;
+  border-radius: 12px;
+  font-size: 22px;
+  margin-bottom: 15px;
+}
+
+.p2-option-section {
+  margin-bottom: 30px;
+}
+
+/* ตกแต่ง Input เพิ่มเติม */
+.p2-note-input {
+  width: 100%;
+  height: 50px;
+  background-color: #E0E0E0;
+  border: none;
+  border-radius: 10px;
+  padding: 0 15px;
+  font-size: 18px;
+}
+
+/* ปุ่มยืนยันกึ่งกลาง */
+.p2-detail-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  padding-bottom: 30px;
+}
+
+.p2-add-to-cart-btn {
+  width: 320px;
+  height: 60px;
+  background-color: #2D6A4F; /* สีเขียวเข้ม */
+  color: white;
+  border-radius: 15px;
+  font-size: 24px;
+  border: none;
+  cursor: pointer;
+}
+
+/* ไฟล์ person2-order.css */
+
+.p2-back-btn {
+  /* 1. จัดตำแหน่งให้อยู่มุมซ้ายบน */
+  position: absolute;
+  top: 100px;    /* ระยะห่างจากขอบบน */
+  left: 20px;   /* ระยะห่างจากขอบซ้าย */
+  
+  /* 2. สาปให้เป็นวงกลม */
+  width: 35px;           /* กำหนดความกว้าง */
+  height: 35px;          /* กำหนดความสูงให้เท่ากับความกว้าง */
+  border-radius: 50%;    /* ทำให้ขอบมน 50% จนกลายเป็นวงกลมเป๊ะๆ */
+  
+  /* 3. ตกแต่งสีและขอบ */
+  background-color: white; /* สีพื้นหลังวงกลม */
+  border: 1px solid #ccc;  /* เส้นขอบบางๆ (ถ้าไม่เอาก็ใส่ border: none;) */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* ใส่เงาเบาๆ ให้ดูมีมิติ */
+  
+  /* 4. จัดลูกศรให้อยู่ตรงกลางวงกลมเป๊ะๆ */
+  display: flex;
+  align-items: center;     /* จัดกลางแนวตั้ง */
+  justify-content: center; /* จัดกลางแนวนอน */
+  
+  /* 5. ตกแต่งตัวลูกศร */
+  color: #333;             /* สีของลูกศร */
+  font-size: 20px;         /* ขนาดของลูกศร */
+  font-weight: bold;       /* ทำให้ลูกศรหนาขึ้น (ถ้าใช้ Unicode) */
+  
+  /* 6. ส่วนเสริมอื่นๆ */
+  cursor: pointer;         /* เปลี่ยน cursor เป็นรูปมือ */
+  transition: all 0.2s;    /* ใส่ Effect เวลาเอาเมาส์ไปชี้ */
+  z-index: 10;             /* ทำให้ปุ่มลอยอยู่เหนือรูปรสชาติอาหาร */
+}
+
+/* Effect เวลาเอาเมาส์ไปชี้ (Hover) */
+.p2-back-btn:hover {
+  background-color: #f0f0f0; /* เปลี่ยนสีพื้นหลังนิดหน่อย */
+  transform: scale(1.1);       /* ขยายขนาดขึ้นเล็กน้อย */
+}
+
+.p2-arrow-icon {
+  font-weight: 900; /* ปรับให้หนาที่สุด */
+  font-size: 20px;
+  -webkit-text-stroke: 1px black; /* เคล็ดลับลัด: ใช้เส้นขอบตัวอักษรช่วยให้ดูหนาขึ้น */
+  display: block;
+  transform: translateX(-2px); /* ปรับตำแหน่งให้ดูอยู่กลางวงกลมจริงๆ */
+}
+
+.p2-detail-menu-name {
+  font-size: 25px;
+  font-weight: bold;
+  margin-top: 30px;
+  color: #333;
+  text-align: center; /* บังคับให้ตัวหนังสืออยู่กึ่งกลาง */
+  width: 100%;        /* ขยายพื้นที่ให้เต็มเพื่อการจัดกึ่งกลางที่แม่นยำ */
+}
+
+/* ในไฟล์ person2-order.css */
+
+.p2-checkbox-group, 
+.p2-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 25px; /* <--- เพิ่มตัวเลขนี้ให้มากขึ้น (เดิมอาจจะเป็น 10 หรือ 15) */
+  padding-left: 15px;
+  margin-top: 10px;
+}
+
