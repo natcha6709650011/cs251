@@ -313,3 +313,210 @@
   justify-content: center;
   gap: 16px;
 }
+
+.p1-login-page {
+  min-height: 100vh;
+  background: #fff4e8;
+  position: relative;
+  padding-top: 1px;
+}
+
+.p1-login-topbar {
+  height: 150px;
+  background: #c81912;
+  border-bottom-left-radius: 42px;
+  border-bottom-right-radius: 42px;
+  padding: 42px 54px;
+  display: flex;
+  align-items: flex-start;
+}
+
+.p1-login-user-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.22);
+}
+
+.p1-login-card {
+  width: 460px;
+  min-height: 250px;
+  background: #fff;
+  border-radius: 16px;
+  margin: 130px auto 0;
+  padding: 44px 48px 34px;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.22);
+}
+
+.p1-login-title {
+  font-size: 24px;
+  margin: 0 0 28px;
+  font-weight: 600;
+}
+
+.p1-login-input {
+  width: 100%;
+  height: 48px;
+  border-radius: 16px;
+  border: none;
+  background: #d9d9d9;
+  box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.22);
+  padding: 0 18px;
+  font-size: 20px;
+  outline: none;
+  text-align: center;
+}
+
+.p1-login-btn {
+  margin-top: 42px;
+  min-width: 170px;
+}
+
+.p1-employee-card {
+  position: relative;
+  width: 500px;
+  background: #fff;
+  border-radius: 16px;
+  margin: 120px auto 0;
+  padding: 74px 42px 34px;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.22);
+}
+
+.p1-employee-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: #f1f1f1;
+  position: absolute;
+  top: -48px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  font-size: 42px;
+  overflow: hidden;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.24);
+}
+
+.p1-employee-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.p1-employee-name {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 500;
+}
+
+.p1-employee-text {
+  margin: 6px 0;
+  font-size: 22px;
+}
+
+.p1-employee-actions {
+  margin-top: 38px;
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+}
+
+.p1-mini-topbar {
+  height: 130px;
+  background: #c81912;
+  border-bottom-left-radius: 42px;
+  border-bottom-right-radius: 42px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 48px;
+}
+
+.p1-mini-avatar {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  overflow: hidden;
+}
+
+.p1-mini-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.p1-mini-id {
+  background: #fff;
+  border-radius: 999px;
+  padding: 10px 34px;
+  font-size: 18px;
+  min-width: 140px;
+  text-align: center;
+}
+
+.p1-success-card {
+  width: 520px;
+  background: #fff;
+  border-radius: 28px;
+  margin: 100px auto 0;
+  padding: 42px;
+  text-align: center;
+}
+
+.p1-success-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 16px;
+  border: 3px solid #222;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 54px;
+  line-height: 1;
+}
+
+.p1-success-title {
+  font-size: 26px;
+  margin: 0 0 10px;
+}
+
+.p1-success-text {
+  font-size: 20px;
+  margin: 0 0 26px;
+}
+
+.p1-success-btn {
+  display: block;
+  min-width: 160px;
+  margin: 12px auto 0;
+}
+
+@media (max-width: 700px) {
+  .p1-login-card,
+  .p1-employee-card,
+  .p1-success-card {
+    width: 90%;
+  }
+
+  .p1-login-topbar,
+  .p1-mini-topbar {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .p1-employee-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+}
