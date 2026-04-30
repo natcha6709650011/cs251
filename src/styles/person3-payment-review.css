@@ -861,3 +861,101 @@
 .p3-success-card {
   text-align: center;
 }
+
+/* โครงสร้างหน้าสรุปเหยอด */
+.p3-payment-summary-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #fff4e8;
+  padding: 20px;
+}
+
+.p3-payment-summary-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 500px;
+}
+
+.p3-payment-summary-title {
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: #333;
+}
+
+/* ส่วนรายละเอียดแบบ List */
+.p3-payment-summary-detail {
+  margin-bottom: 2rem;
+}
+
+.p3-detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.p3-detail-row dt {
+  color: #666;
+  font-weight: 500;
+}
+
+.p3-detail-row dd {
+  margin: 0;
+  font-weight: bold;
+  color: #000;
+}
+
+/* ยอดรวม */
+.p3-payment-summary-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 0;
+  border-top: 2px solid #333;
+  margin-top: 1rem;
+}
+
+.p3-total-amount {
+  font-size: 1.8rem;
+  color: #e63946;
+}
+
+/* ปุ่มกด */
+.p3-payment-summary-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 1.5rem;
+}
+
+.p3-btn-primary {
+  flex: 2;
+  background-color: #2a9d8f;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.p3-btn-secondary {
+  flex: 1;
+  background-color: #e9ecef;
+  color: #495057;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.p3-btn-primary:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
