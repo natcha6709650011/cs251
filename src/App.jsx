@@ -82,6 +82,57 @@ function uiPaymentToDb(method) {
   return map[method] || method || "Cash";
 }
 
+function formatReservationDate(value) {
+  if (!value) return "";
+
+  const text = String(value);
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+    return text.slice(0, 10);
+  }
+
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  return text;
+}
+
+function formatReservationTime(value) {
+  if (!value) return "";
+
+  const text = String(value);
+
+  const timeMatch = text.match(/(\d{2}):(\d{2})/);
+  if (timeMatch) {
+    return `${timeMatch[1]}:${timeMatch[2]}`;
+  }
+
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) {
+    const hh = String(date.getHours()).padStart(2, "0");
+    const mm = String(date.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+
+  return text;
+}
+
+function normalizeReservationFromDb(item) {
+  return {
+    RId: item.RId,
+    customerId: item.CId || item.customerId,
+    tableNumber: item.TNumber || item.tableNumber,
+    RDate: formatReservationDate(item.RDate || item.date),
+    RTime: formatReservationTime(item.RTime || item.time),
+    PeopleCount: item.PeopleCount || item.peopleCount || item.count || 1,
+    status: item.status || item.RStatus || "reserved",
+  };
+}
+
+
+
 
 function sanitizeCartItemForApi(item) {
   const safeOptions = item?.options
@@ -219,9 +270,21 @@ function App() {
   const currentReservations = useMemo(() => {
     if (!customer) return [];
 
-    return db.reservations.filter(
-      (reservation) => reservation.customerId === customer.CId
-    );
+    return (db.reservations || [])
+      .filter((reservation) => {
+        const reservationCustomerId =
+          reservation.customerId || reservation.CId || reservation.MemberId || "";
+
+        return String(reservationCustomerId) === String(customer.CId);
+      })
+      .filter((reservation) => {
+        const status = String(
+          reservation.status || reservation.RStatus || reservation.Status || "reserved"
+        ).toLowerCase();
+
+        return !["checked_in", "cancelled", "canceled", "paid", "done"].includes(status);
+      })
+      .map((reservation) => normalizeReservationFromDb(reservation));
   }, [db.reservations, customer]);
 
 
@@ -454,15 +517,7 @@ function App() {
       try {
         const reservationResult = await apiRequest(`/api/reservations/customer/${encodeURIComponent(foundMember.CId)}`);
         memberReservations = Array.isArray(reservationResult.data)
-          ? reservationResult.data.map((item) => ({
-              RId: item.RId,
-              customerId: item.CId,
-              tableNumber: item.TNumber,
-              RDate: typeof item.RDate === "string" ? item.RDate.slice(0, 10) : item.RDate,
-              RTime: typeof item.RTime === "string" ? item.RTime.slice(0, 5) : item.RTime,
-              PeopleCount: item.PeopleCount || 1,
-              status: item.status || "reserved",
-            }))
+          ? reservationResult.data.map(normalizeReservationFromDb)
           : [];
       } catch (reservationError) {
         console.warn("Cannot load reservation history:", reservationError.message);
@@ -623,9 +678,9 @@ function App() {
         RId: result.reservationId,
         customerId: customer.CId,
         tableNumber: table.TNumber,
-        RDate: date,
-        RTime: time,
-        PeopleCount: Number(count) || 1,
+        RDate: formatReservationDate(result.date || date),
+        RTime: formatReservationTime(result.time || time),
+        PeopleCount: Number(result.peopleCount || count) || 1,
         status: "reserved",
         createdAt: new Date().toISOString(),
       };
@@ -651,6 +706,11 @@ function App() {
       (item) => item.TNumber === reservation.tableNumber
     );
 
+    const reservationMember =
+      db.members.find((member) => member.CId === reservation.customerId) ||
+      db.members.find((member) => member.CId === reservation.CId) ||
+      customer;
+
     try {
       await apiRequest(`/api/tables/${reservation.tableNumber}/status`, {
         method: "PATCH",
@@ -664,13 +724,8 @@ function App() {
 
     updateDB((prev) => ({
       ...prev,
-      reservations: prev.reservations.map((item) =>
-        item.RId === reservation.RId
-          ? {
-              ...item,
-              status: "checked_in",
-            }
-          : item
+      reservations: prev.reservations.filter(
+        (item) => String(item.RId) !== String(reservation.RId)
       ),
       tables: prev.tables.map((item) =>
         item.TNumber === reservation.tableNumber
@@ -688,6 +743,12 @@ function App() {
       ...reservation,
       status: "checked_in",
     });
+
+    if (reservationMember) {
+      setCustomer(reservationMember);
+      setCustomerType("Member");
+      setMemberMode("order");
+    }
 
     setSelectedTable(table || { TNumber: reservation.tableNumber });
     setPage("order-food");
@@ -938,12 +999,16 @@ async function confirmOrder() {
   }
 
 function createReviewSession(currentOrders) {
-    const memberCustomer =
-      customer ||
-      db.members.find((member) => String(member.CId || "").startsWith("M"));
+    const reservationMember =
+      selectedReservation?.customerId
+        ? db.members.find((member) => member.CId === selectedReservation.customerId)
+        : null;
+
+    const memberCustomer = customer || reservationMember;
 
     const isMemberCustomer =
       customerType === "Member" ||
+      Boolean(selectedReservation?.customerId) ||
       String(memberCustomer?.CId || "").startsWith("M") ||
       Boolean(memberCustomer?.MFirstName || memberCustomer?.MTel);
 
@@ -952,7 +1017,6 @@ function createReviewSession(currentOrders) {
     }
 
     // ใช้ OId/orderId จริงจาก Orders ทุกใบในบิลเดียวกัน
-    // กรณีพนักงานหลายคนดูแล จะมีหลาย order จึงต้องส่งไปทั้งหมด
     const orderIds = [
       ...new Set(
         currentOrders
@@ -1004,7 +1068,7 @@ function createReviewSession(currentOrders) {
     const payment = {
       paymentId: generateId("P"),
       tableNumber: selectedTable?.TNumber || "",
-      customerId: customer?.CId || "",
+      customerId: customer?.CId || selectedReservation?.customerId || "",
       employeeId: employee?.EId || "",
       method: paymentMethod,
       total: realTotal,
@@ -1013,12 +1077,16 @@ function createReviewSession(currentOrders) {
       orderIds: currentOrders.map((order) => order.orderId),
     };
 
-    const memberCustomer =
-      customer ||
-      db.members.find((member) => String(member.CId || "").startsWith("M"));
+    const reservationMember =
+      selectedReservation?.customerId
+        ? db.members.find((member) => member.CId === selectedReservation.customerId)
+        : null;
+
+    const memberCustomer = customer || reservationMember;
 
     const isMemberCustomer =
       customerType === "Member" ||
+      Boolean(selectedReservation?.customerId) ||
       String(memberCustomer?.CId || "").startsWith("M") ||
       Boolean(memberCustomer?.MFirstName || memberCustomer?.MTel);
 

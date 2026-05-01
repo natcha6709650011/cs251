@@ -661,7 +661,13 @@ app.get("/api/reservations/customer/:customerId", async (req, res) => {
       .request()
       .input("CId", sql.VarChar(10), req.params.customerId)
       .query(`
-        SELECT *
+        SELECT
+          RId,
+          CId,
+          TNumber,
+          CONVERT(varchar(10), RDate, 120) AS RDate,
+          CONVERT(varchar(5), RTime, 108) AS RTime,
+          PeopleCount
         FROM Reservation
         WHERE CId = @CId
         ORDER BY RDate DESC, RTime DESC
