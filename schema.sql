@@ -83,6 +83,7 @@ CREATE TABLE Reservation
     RTime TIME,
     CId VARCHAR(10),
     TNumber VARCHAR(2),
+    PeopleCount INT DEFAULT 1,
     FOREIGN KEY (CId) REFERENCES Customer(CId),
     FOREIGN KEY (TNumber) REFERENCES Tables(TNumber)
 );
