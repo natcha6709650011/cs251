@@ -10,8 +10,9 @@ app.use(express.json());
 const dbConfig = {
   user: process.env.DB_USER || "sa",
   password: process.env.DB_PASSWORD || "YourStrong@Passw0rd",
-  server: process.env.DB_SERVER || "localhost\\SQLEXPRESS",
+  server: process.env.DB_SERVER || "localhost",
   database: process.env.DB_DATABASE || "cs251",
+  port: Number(process.env.DB_PORT || 1433),
   options: {
     encrypt: false,
     trustServerCertificate: true,
@@ -76,19 +77,96 @@ function normalizeNumber(value, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function normalizeDateForSql(value) {
+  if (!value) return "";
+
+  const raw = String(value).trim();
+
+  // HTML date input normally sends YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+  // If iPad/Safari sends a readable Buddhist Era date such as "1 May BE 2569"
+  const monthMap = {
+    jan: "01", january: "01",
+    feb: "02", february: "02",
+    mar: "03", march: "03",
+    apr: "04", april: "04",
+    may: "05",
+    jun: "06", june: "06",
+    jul: "07", july: "07",
+    aug: "08", august: "08",
+    sep: "09", sept: "09", september: "09",
+    oct: "10", october: "10",
+    nov: "11", november: "11",
+    dec: "12", december: "12",
+  };
+
+  const match = raw.match(/(\d{1,2})\s+([A-Za-z]+)\s+(?:BE\s*)?(\d{4})/i);
+  if (match) {
+    const day = match[1].padStart(2, "0");
+    const month = monthMap[match[2].toLowerCase()];
+    let year = Number(match[3]);
+    if (year > 2400) year -= 543;
+    if (month) return `${year}-${month}-${day}`;
+  }
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, "0");
+    const d = String(parsed.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  return raw;
+}
+
+function normalizeTimeForSql(value) {
+  if (!value) return "00:00:00";
+  const raw = String(value).trim();
+
+  if (/^\d{2}:\d{2}:\d{2}$/.test(raw)) return raw;
+  if (/^\d{1,2}:\d{2}$/.test(raw)) {
+    const [h, m] = raw.split(":");
+    return `${h.padStart(2, "0")}:${m}:00`;
+  }
+
+  const parsed = new Date(`1970-01-01T${raw}`);
+  if (!Number.isNaN(parsed.getTime())) {
+    return `${String(parsed.getHours()).padStart(2, "0")}:${String(parsed.getMinutes()).padStart(2, "0")}:00`;
+  }
+
+  return raw;
+}
+
+async function generateUniqueIntId(tableName, columnName, digits = 4) {
+  const db = await getPool();
+
+  for (let i = 0; i < 50; i++) {
+    const id = Number(randomDigits(digits));
+    const result = await db
+      .request()
+      .input("id", sql.Int, id)
+      .query(`SELECT COUNT(*) AS count FROM ${tableName} WHERE ${columnName} = @id`);
+
+    if (Number(result.recordset[0]?.count || 0) === 0) return id;
+  }
+
+  return Number(Date.now().toString().slice(-digits));
+}
+
 function mapCategoryNameToFrontend(categoryName) {
-  if (categoryName === "เมนูแนะนำ") return "recommended";
-  if (categoryName === "อาหาร") return "food";
-  if (categoryName === "ของทานเล่น") return "snackDessert";
-  if (categoryName === "ของหวาน") return "snackDessert";
-  if (categoryName === "ของทานเล่นและของหวาน") return "snackDessert";
-  if (categoryName === "เครื่องดื่ม") return "drink";
+  if (categoryName === "recommended" || categoryName === "เมนูแนะนำ") return "recommended";
+  if (categoryName === "food" || categoryName === "อาหาร") return "food";
+  if (categoryName === "snack" || categoryName === "ของทานเล่น") return "snackDessert";
+  if (categoryName === "dessert" || categoryName === "ของหวาน") return "snackDessert";
+  if (categoryName === "drink" || categoryName === "เครื่องดื่ม") return "drink";
   return "food";
 }
 
 function mapOptionType(categoryName) {
-  if (categoryName === "เครื่องดื่ม") return "drink";
-  if (categoryName === "ของทานเล่น" || categoryName === "ของหวาน") return "snack";
+  if (categoryName === "drink" || categoryName === "เครื่องดื่ม") return "drink";
+  if (categoryName === "snack" || categoryName === "dessert" || categoryName === "ของทานเล่น" || categoryName === "ของหวาน") return "snack";
   return "food";
 }
 
@@ -117,13 +195,24 @@ function getMenuIdFromItem(item) {
 async function updateTableStatusInTx(transaction, tableNumber, status) {
   if (!tableNumber) return;
 
+  const statusMap = {
+    "ว่าง": "available",
+    "ไม่ว่าง": "not available",
+    empty: "available",
+    occupied: "not available",
+    available: "available",
+    "not available": "not available",
+  };
+
+  const finalStatus = statusMap[status] || status || "available";
+
   const hasStatus = await tableHasColumn("Tables", "Status");
   const hasTStatus = await tableHasColumn("Tables", "TStatus");
 
   if (hasStatus) {
     await transaction
       .request()
-      .input("Status", sql.NVarChar(20), status)
+      .input("Status", sql.VarChar(20), finalStatus)
       .input("TNumber", sql.VarChar(2), tableNumber)
       .query(`
         UPDATE Tables
@@ -135,7 +224,7 @@ async function updateTableStatusInTx(transaction, tableNumber, status) {
   if (hasTStatus) {
     await transaction
       .request()
-      .input("TStatus", sql.NVarChar(20), status)
+      .input("TStatus", sql.VarChar(20), finalStatus)
       .input("TNumber", sql.VarChar(2), tableNumber)
       .query(`
         UPDATE Tables
@@ -144,6 +233,43 @@ async function updateTableStatusInTx(transaction, tableNumber, status) {
       `);
   }
 }
+
+
+/* ===========================
+   REVIEW SESSION STORE (in memory)
+   ใช้ให้ QR ที่เปิดจากมือถืออีกเครื่องดึงข้อมูลประเมินได้ โดยไม่ต้องแก้ DB
+=========================== */
+const reviewSessionStore = new Map();
+
+app.post("/api/review-sessions", express.json(), (req, res) => {
+  try {
+    const { code, data } = req.body || {};
+    if (!code || !data) {
+      return res.status(400).json({ success: false, error: "code and data are required" });
+    }
+
+    reviewSessionStore.set(String(code), {
+      ...data,
+      savedAt: new Date().toISOString(),
+    });
+
+    res.json({ success: true, code });
+  } catch (error) {
+    console.error("POST /api/review-sessions", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get("/api/review-sessions/:code", (req, res) => {
+  const code = String(req.params.code || "");
+  const data = reviewSessionStore.get(code);
+
+  if (!data) {
+    return res.status(404).json({ success: false, error: "review session not found" });
+  }
+
+  res.json({ success: true, data });
+});
 
 /* ===========================
    HEALTH CHECK
@@ -195,7 +321,7 @@ app.get("/api/menus", async (req, res) => {
       price: row.Price,
       image: "",
       category: mapCategoryNameToFrontend(row.Category_Name),
-      recommended: row.Category_Name === "เมนูแนะนำ",
+      recommended: row.Category_Name === "recommended" || row.Category_Name === "เมนูแนะนำ",
       optionType: mapOptionType(row.Category_Name),
       status: row.MenuStatus,
     }));
@@ -347,8 +473,8 @@ app.post("/api/members", async (req, res) => {
       .input("CId", sql.VarChar(10), cId)
       .input("MFirstName", sql.NVarChar(25), firstName || MFirstName || "")
       .input("MSurName", sql.NVarChar(25), lastName || MSurName || "")
-      .input("MTel", sql.VarChar(10), tel || MTel || "")
-      .input("MEmail", sql.VarChar(25), email || MEmail || "")
+      .input("MTel", sql.VarChar(10), String(tel || MTel || "").trim().slice(0, 10))
+      .input("MEmail", sql.VarChar(50), email || MEmail || "")
       .query(`
         IF EXISTS (SELECT 1 FROM Member WHERE CId = @CId)
         BEGIN
@@ -414,27 +540,32 @@ app.get("/api/members/by-phone/:tel", async (req, res) => {
    RESERVATION
 =========================== */
 app.post("/api/reservations", async (req, res) => {
-  try {
-    const db = await getPool();
+  const db = await getPool();
+  const transaction = new sql.Transaction(db);
 
+  try {
     const {
       reservationId,
       customerId,
       tableNumber,
       date,
       time,
+      count,
+      peopleCount,
       RId,
       CId,
       TNumber,
       RDate,
       RTime,
+      PeopleCount,
     } = req.body;
 
-    const rid = reservationId || RId || Number(randomDigits(4));
-    const cId = customerId || CId || "MB0001";
+    const rid = Number(reservationId || RId) || (await generateUniqueIntId("Reservation", "RId", 4));
+    const cId = customerId || CId || "M00001";
     const tNumber = tableNumber || TNumber;
-    const rDate = date || RDate;
-    const rTime = time || RTime;
+    const rDate = normalizeDateForSql(date || RDate);
+    const rTime = normalizeTimeForSql(time || RTime);
+    const pCount = normalizeNumber(count || peopleCount || PeopleCount, 1);
 
     if (!tNumber || !rDate || !rTime) {
       return res.status(400).json({
@@ -443,40 +574,80 @@ app.post("/api/reservations", async (req, res) => {
       });
     }
 
-    const duplicate = await db
+    await transaction.begin();
+
+    await transaction
+      .request()
+      .input("CId", sql.VarChar(10), cId)
+      .query(`
+        IF NOT EXISTS (SELECT 1 FROM Customer WHERE CId = @CId)
+        INSERT INTO Customer (CId) VALUES (@CId)
+      `);
+
+    const tableCheck = await transaction
       .request()
       .input("TNumber", sql.VarChar(2), tNumber)
-      .input("RDate", sql.Date, rDate)
-      .input("RTime", sql.Time, rTime)
+      .query(`SELECT COUNT(*) AS count FROM Tables WHERE TNumber = @TNumber`);
+
+    if (Number(tableCheck.recordset[0]?.count || 0) === 0) {
+      throw new Error(`Table ${tNumber} not found in Tables table`);
+    }
+
+    const duplicate = await transaction
+      .request()
+      .input("TNumber", sql.VarChar(2), tNumber)
+      .input("RDateText", sql.VarChar(10), rDate)
+      .input("RTimeText", sql.VarChar(8), rTime)
       .query(`
         SELECT COUNT(*) AS count
         FROM Reservation
         WHERE TNumber = @TNumber
-          AND RDate = @RDate
-          AND RTime = @RTime
+          AND RDate = CONVERT(date, @RDateText, 120)
+          AND RTime = CONVERT(time, @RTimeText, 108)
       `);
 
     if (Number(duplicate.recordset[0]?.count || 0) > 0) {
+      await transaction.rollback();
       return res.status(409).json({
         success: false,
         error: "This table is already reserved at selected date/time",
       });
     }
 
-    await db
-      .request()
-      .input("RId", sql.Int, Number(rid))
-      .input("RDate", sql.Date, rDate)
-      .input("RTime", sql.Time, rTime)
-      .input("CId", sql.VarChar(10), cId)
-      .input("TNumber", sql.VarChar(2), tNumber)
-      .query(`
-        INSERT INTO Reservation (RId, RDate, RTime, CId, TNumber)
-        VALUES (@RId, @RDate, @RTime, @CId, @TNumber)
-      `);
+    const hasPeopleCount = await tableHasColumn("Reservation", "PeopleCount");
 
-    res.json({ success: true, reservationId: rid });
+    if (hasPeopleCount) {
+      await transaction
+        .request()
+        .input("RId", sql.Int, rid)
+        .input("RDateText", sql.VarChar(10), rDate)
+        .input("RTimeText", sql.VarChar(8), rTime)
+        .input("CId", sql.VarChar(10), cId)
+        .input("TNumber", sql.VarChar(2), tNumber)
+        .input("PeopleCount", sql.Int, pCount)
+        .query(`
+          INSERT INTO Reservation (RId, RDate, RTime, CId, TNumber, PeopleCount)
+          VALUES (@RId, CONVERT(date, @RDateText, 120), CONVERT(time, @RTimeText, 108), @CId, @TNumber, @PeopleCount)
+        `);
+    } else {
+      await transaction
+        .request()
+        .input("RId", sql.Int, rid)
+        .input("RDateText", sql.VarChar(10), rDate)
+        .input("RTimeText", sql.VarChar(8), rTime)
+        .input("CId", sql.VarChar(10), cId)
+        .input("TNumber", sql.VarChar(2), tNumber)
+        .query(`
+          INSERT INTO Reservation (RId, RDate, RTime, CId, TNumber)
+          VALUES (@RId, CONVERT(date, @RDateText, 120), CONVERT(time, @RTimeText, 108), @CId, @TNumber)
+        `);
+    }
+
+    await transaction.commit();
+
+    res.json({ success: true, reservationId: rid, date: rDate, time: rTime, peopleCount: pCount });
   } catch (error) {
+    await transaction.rollback().catch(() => {});
     console.error("POST /api/reservations", error);
     res.status(500).json({ success: false, error: error.message });
   }
@@ -532,13 +703,34 @@ app.post("/api/orders", async (req, res) => {
   try {
     const { customerId, employeeId, tableNumber, items, CId, EId, TNumber } = req.body;
 
-    const cId = customerId || CId || "G000000001";
+    const cId = customerId || CId || "G00001";
     const eId = employeeId || EId || "E123456";
     const tNumber = tableNumber || TNumber || "S3";
     const orderItems = Array.isArray(items) ? items : [];
 
-    if (orderItems.length === 0) {
-      return res.status(400).json({ success: false, error: "items are required" });
+    const cleanItems = orderItems
+      .map((item) => {
+        const menuId = getMenuIdFromItem(item);
+        const quantity = normalizeNumber(item.quantity, 1);
+        const unitPrice = normalizeNumber(
+          item.finalPrice || item.price || item.basePrice || item.unitPrice || item.UnitPrice,
+          0
+        );
+
+        return {
+          ...item,
+          __menuId: menuId,
+          __quantity: quantity,
+          __unitPrice: unitPrice,
+        };
+      })
+      .filter((item) => item.__menuId && item.__quantity > 0 && item.__unitPrice > 0);
+
+    if (cleanItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "No valid order items. Please clear cart and add menu again.",
+      });
     }
 
     const orderId = await generateUniqueId("Orders", "OId", "O", 3);
@@ -546,15 +738,44 @@ app.post("/api/orders", async (req, res) => {
 
     await transaction.begin();
 
+    // Ensure Customer exists so Orders FK will not fail.
+    await transaction
+      .request()
+      .input("CId", sql.VarChar(10), cId)
+      .query(`
+        IF NOT EXISTS (SELECT 1 FROM Customer WHERE CId = @CId)
+        INSERT INTO Customer (CId) VALUES (@CId)
+      `);
+
+    // Ensure General row exists for general customers.
+    if (String(cId).startsWith("G")) {
+      await transaction
+        .request()
+        .input("CId", sql.VarChar(10), cId)
+        .query(`
+          IF NOT EXISTS (SELECT 1 FROM General WHERE CId = @CId)
+          INSERT INTO General (CId) VALUES (@CId)
+        `);
+    }
+
+    // Fallback employee if incoming id is missing from Employee table.
+    const employeeCheck = await transaction
+      .request()
+      .input("EId", sql.VarChar(10), eId)
+      .query(`SELECT COUNT(*) AS count FROM Employee WHERE EId = @EId`);
+
+    const finalEmployeeId =
+      Number(employeeCheck.recordset[0]?.count || 0) > 0 ? eId : "E123456";
+
     if (hasOStatus) {
       await transaction
         .request()
         .input("OId", sql.VarChar(4), orderId)
         .input("ODateTime", sql.DateTime2, new Date())
         .input("CId", sql.VarChar(10), cId)
-        .input("EId", sql.VarChar(10), eId)
+        .input("EId", sql.VarChar(10), finalEmployeeId)
         .input("TNumber", sql.VarChar(2), tNumber)
-        .input("OStatus", sql.VarChar(15), "pending")
+        .input("OStatus", sql.VarChar(20), "pending")
         .query(`
           INSERT INTO Orders (OId, ODateTime, CId, EId, TNumber, OStatus)
           VALUES (@OId, @ODateTime, @CId, @EId, @TNumber, @OStatus)
@@ -565,7 +786,7 @@ app.post("/api/orders", async (req, res) => {
         .input("OId", sql.VarChar(4), orderId)
         .input("ODateTime", sql.DateTime2, new Date())
         .input("CId", sql.VarChar(10), cId)
-        .input("EId", sql.VarChar(10), eId)
+        .input("EId", sql.VarChar(10), finalEmployeeId)
         .input("TNumber", sql.VarChar(2), tNumber)
         .query(`
           INSERT INTO Orders (OId, ODateTime, CId, EId, TNumber)
@@ -580,19 +801,28 @@ app.post("/api/orders", async (req, res) => {
     const hasNote = await tableHasColumn("OrderDetails", "Note");
     const hasSubTotal = await tableHasColumn("OrderDetails", "SubTotal");
 
-    for (const item of orderItems) {
-      const detailId = await generateUniqueId("OrderDetails", "OD_Id", "D", 1);
-      const quantity = normalizeNumber(item.quantity, 1);
-      const unitPrice = normalizeNumber(item.finalPrice || item.price || item.basePrice, 0);
-      const menuId = getMenuIdFromItem(item);
+    for (const item of cleanItems) {
+      const detailId = await generateUniqueId("OrderDetails", "OD_Id", "D", 4);
+      const quantity = item.__quantity;
+      const unitPrice = item.__unitPrice;
+      const menuId = item.__menuId;
       const options = item.options || {};
       const toppings = Array.isArray(options.toppings)
         ? options.toppings.join(",")
         : options.topping || "";
 
+      const menuCheck = await transaction
+        .request()
+        .input("MenuId", sql.VarChar(3), menuId)
+        .query(`SELECT COUNT(*) AS count FROM Menu WHERE MenuId = @MenuId`);
+
+      if (Number(menuCheck.recordset[0]?.count || 0) === 0) {
+        throw new Error(`MenuId ${menuId} not found in Menu table`);
+      }
+
       const cols = ["OD_Id", "Quantity", "UnitPrice", "OId", "MenuId"];
       const params = [
-        { name: "OD_Id", type: sql.VarChar(2), value: detailId },
+        { name: "OD_Id", type: sql.VarChar(5), value: detailId },
         { name: "Quantity", type: sql.Int, value: quantity },
         { name: "UnitPrice", type: sql.Int, value: unitPrice },
         { name: "OId", type: sql.VarChar(4), value: orderId },
@@ -605,23 +835,23 @@ app.post("/api/orders", async (req, res) => {
       }
       if (hasSizeOption) {
         cols.push("SizeOption");
-        params.push({ name: "SizeOption", type: sql.NVarChar(20), value: options.size || "" });
+        params.push({ name: "SizeOption", type: sql.VarChar(20), value: options.size || "" });
       }
       if (hasToppings) {
         cols.push("Toppings");
-        params.push({ name: "Toppings", type: sql.NVarChar(100), value: toppings });
+        params.push({ name: "Toppings", type: sql.VarChar(100), value: toppings });
       }
       if (hasDrinkType) {
         cols.push("DrinkType");
-        params.push({ name: "DrinkType", type: sql.NVarChar(20), value: options.drinkType || "" });
+        params.push({ name: "DrinkType", type: sql.VarChar(20), value: options.drinkType || "" });
       }
       if (hasSweetness) {
         cols.push("Sweetness");
-        params.push({ name: "Sweetness", type: sql.NVarChar(20), value: options.sweetness || "" });
+        params.push({ name: "Sweetness", type: sql.VarChar(20), value: options.sweetness || "" });
       }
       if (hasNote) {
         cols.push("Note");
-        params.push({ name: "Note", type: sql.NVarChar(100), value: options.note || "" });
+        params.push({ name: "Note", type: sql.VarChar(100), value: options.note || "" });
       }
 
       const req = transaction.request();
@@ -634,7 +864,7 @@ app.post("/api/orders", async (req, res) => {
       `);
     }
 
-    await updateTableStatusInTx(transaction, tNumber, "ไม่ว่าง");
+    await updateTableStatusInTx(transaction, tNumber, "not available");
     await transaction.commit();
 
     res.json({ success: true, orderId });
@@ -749,7 +979,7 @@ app.post("/api/payments", async (req, res) => {
     }
 
     if (tNumber) {
-      await updateTableStatusInTx(transaction, tNumber, "ว่าง");
+      await updateTableStatusInTx(transaction, tNumber, "available");
     }
 
     await transaction.commit();
@@ -770,11 +1000,11 @@ app.post("/api/reviews/order", async (req, res) => {
     const db = await getPool();
 
     const { orderId, rating, comment, OId, Rating, Comment } = req.body;
-    const reviewId = await generateUniqueId("OrderReview", "ROId", "R", 4);
+    const reviewId = await generateUniqueId("OrderReview", "ROId", "R", 3);
 
     await db
       .request()
-      .input("ROId", sql.VarChar(5), reviewId)
+      .input("ROId", sql.VarChar(4), reviewId)
       .input("Rating", sql.Int, normalizeNumber(rating || Rating, 5))
       .input("Comment", sql.NVarChar(100), comment || Comment || "")
       .input("ReviewDateTime", sql.DateTime2, new Date())
@@ -834,6 +1064,6 @@ app.post("/api/reviews/employee", async (req, res) => {
 
 const port = process.env.PORT || 4000;
 
-app.listen(port, () => {
-  console.log(`CS251 SQL Server API running at http://localhost:${port}`);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`CS251 SQL Server API running at http://0.0.0.0:${port}`);
 });
