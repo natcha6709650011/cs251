@@ -5,8 +5,8 @@ CREATE TABLE Employee
     EFirstName NVARCHAR(25),
     ESurName NVARCHAR(25),
     ETel VARCHAR(10),
-    ERole VARCHAR(20),
-    EStatus VARCHAR(20),
+    ERole NVARCHAR(20),
+    EStatus NVARCHAR(20),
     CONSTRAINT check_ERole CHECK (
         ERole IN ('staff', 'cashier', 'manager', 'chef')
     ),
@@ -29,9 +29,9 @@ GO
 CREATE TABLE Menu
 (
     MenuId VARCHAR(3) PRIMARY KEY,
-    MenuName VARCHAR(50),
+    MenuName NVARCHAR(50),
     Price INT,
-    MenuStatus VARCHAR(20),
+    MenuStatus NVARCHAR(20),
     CONSTRAINT check_MenuStatus CHECK (
         MenuStatus IN ('available', 'not available')
     )
@@ -65,8 +65,8 @@ GO
 CREATE TABLE Tables
 (
     TNumber VARCHAR(2) PRIMARY KEY,
-    T_Type VARCHAR(10),
-    TStatus VARCHAR(20),
+    T_Type NVARCHAR(10),
+    TStatus NVARCHAR(20),
     CONSTRAINT check_T_Type CHECK (
         T_Type IN ('small', 'medium', 'large')
     ),
@@ -105,7 +105,7 @@ CREATE TABLE Orders
     CId VARCHAR(10),
     EId VARCHAR(10),
     TNumber VARCHAR(2),
-    OStatus VARCHAR(20),
+    OStatus NVARCHAR(20),
     FOREIGN KEY (CId) REFERENCES Customer(CId),
     FOREIGN KEY (EId) REFERENCES Employee(EId),
     FOREIGN KEY (TNumber) REFERENCES Tables(TNumber),
@@ -121,11 +121,11 @@ CREATE TABLE OrderDetails
     Quantity INT,
     UnitPrice INT,
     SubTotal INT,
-    SizeOption VARCHAR(20),
-    Toppings VARCHAR(100),
-    DrinkType VARCHAR(20),
-    Sweetness VARCHAR(20),
-    Note VARCHAR(100),
+    SizeOption NVARCHAR(20),
+    Toppings NVARCHAR(100),
+    DrinkType NVARCHAR(20),
+    Sweetness NVARCHAR(20),
+    Note NVARCHAR(100),
     OId VARCHAR(4),
     MenuId VARCHAR(3),
     FOREIGN KEY (OId) REFERENCES Orders(OId),
@@ -136,7 +136,7 @@ GO
 CREATE TABLE Payment
 (
     PId VARCHAR(5) PRIMARY KEY,
-    P_Method VARCHAR(20),
+    P_Method NVARCHAR(20),
     P_DateTime DATETIME2,
     P_total INT,
     OId VARCHAR(4),
@@ -151,7 +151,7 @@ CREATE TABLE EmployeeReview
 (
     REId VARCHAR(5) PRIMARY KEY,
     Rating INT CHECK (Rating BETWEEN 1 AND 5),
-    Comment VARCHAR(100),
+    Comment NVARCHAR(100),
     ReviewDateTime DATETIME2
 );
 GO
@@ -170,7 +170,7 @@ CREATE TABLE OrderReview
 (
     ROId VARCHAR(4) PRIMARY KEY,
     Rating INT NOT NULL,
-    Comment VARCHAR(100),
+    Comment NVARCHAR(100),
     ReviewDateTime DATETIME2,
     OId VARCHAR(4),
     FOREIGN KEY (OId) REFERENCES Orders(OId),

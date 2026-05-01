@@ -193,9 +193,20 @@ function App() {
   useEffect(() => {
     async function syncInitialDataFromBackend() {
       try {
-        const [tableRes] = await Promise.all([
+        const [tableRes, menuRes] = await Promise.all([
           apiRequest("/api/tables"),
+          apiRequest("/api/menus"),
         ]);
+
+        updateDB((prev) => ({
+          ...prev,
+          tables: Array.isArray(tableRes.data)
+            ? tableRes.data.map(dbTableToUiTable)
+            : prev.tables,
+          menus: Array.isArray(menuRes.data) && menuRes.data.length > 0
+            ? menuRes.data
+            : prev.menus,
+        }));
 
         if (Array.isArray(tableRes.data)) {
           updateDB((prev) => ({
