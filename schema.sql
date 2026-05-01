@@ -1,3 +1,6 @@
+USE cs251;
+GO
+
 CREATE TABLE Employee
 (
     EId VARCHAR(10) PRIMARY KEY,
@@ -14,25 +17,27 @@ CREATE TABLE Employee
         )
     )
 );
+GO
 
 CREATE TABLE Category
 (
     Category_Id VARCHAR(2) PRIMARY KEY,
-    Category_Name VARCHAR(25) ,
+    Category_Name VARCHAR(25),
     CONSTRAINT check_category_name CHECK (
-    Category_Name IN (
-      'เมนูแนะนำ',
-      'อาหาร',
-      'ของทานเล่น',
-      'ของหวาน',
-      'เครื่องดื่ม'
+        Category_Name IN (
+            'เมนูแนะนำ',
+            'อาหาร',
+            'ของทานเล่น',
+            'ของหวาน',
+            'เครื่องดื่ม'
+        )
     )
-  )
 );
+GO
 
 CREATE TABLE Menu
 (
-    MenuId VARCHAR (3) PRIMARY KEY,
+    MenuId VARCHAR(3) PRIMARY KEY,
     MenuName VARCHAR(25),
     Price INT,
     MenuStatus VARCHAR(15),
@@ -43,11 +48,13 @@ CREATE TABLE Menu
         )
     )
 );
+GO
 
 CREATE TABLE Customer
 (
     CId VARCHAR(10) PRIMARY KEY
 );
+GO
 
 CREATE TABLE Member
 (
@@ -58,12 +65,14 @@ CREATE TABLE Member
     MEmail VARCHAR(25),
     FOREIGN KEY (CId) REFERENCES Customer(CId)
 );
+GO
 
 CREATE TABLE General
 (
     CId VARCHAR(10) PRIMARY KEY,
     FOREIGN KEY (CId) REFERENCES Customer(CId)
 );
+GO
 
 CREATE TABLE Tables
 (
@@ -83,7 +92,8 @@ CREATE TABLE Tables
             'ไม่ว่าง'
         )
     )
-)
+);
+GO
 
 CREATE TABLE Reservation
 (
@@ -92,26 +102,10 @@ CREATE TABLE Reservation
     RTime TIME,
     CId VARCHAR(10),
     TNumber VARCHAR(2),
-     FOREIGN KEY (TNumber) REFERENCES Tables(TNumber),
+    FOREIGN KEY (TNumber) REFERENCES Tables(TNumber),
     FOREIGN KEY (CId) REFERENCES Customer(CId)
-)
-
-CREATE TABLE Payment
-(
-    PId VARCHAR (5) PRIMARY KEY,
-    P_Method VARCHAR (10),
-    P_DateTime DATETIME2,
-    OId VARCHAR(4),
-    FOREIGN KEY (OId) REFERENCES Orders(OId),
-    CONSTRAINT check_P_Method CHECK(
-        P_Method IN(
-            'Cash',
-            'Credit Card',
-            'Qr Code'
-        )
-    )
-)
-
+);
+GO
 
 CREATE TABLE Categorizers
 (
@@ -121,7 +115,7 @@ CREATE TABLE Categorizers
     FOREIGN KEY (Category_Id) REFERENCES Category(Category_Id),
     FOREIGN KEY (MenuId) REFERENCES Menu(MenuId)
 );
-
+GO
 
 CREATE TABLE Orders
 (
@@ -134,6 +128,7 @@ CREATE TABLE Orders
     FOREIGN KEY (EId) REFERENCES Employee(EId),
     FOREIGN KEY (TNumber) REFERENCES Tables(TNumber)
 );
+GO
 
 CREATE TABLE OrderDetails
 (
@@ -145,7 +140,24 @@ CREATE TABLE OrderDetails
     FOREIGN KEY (MenuId) REFERENCES Menu(MenuId),
     FOREIGN KEY (OId) REFERENCES Orders(OId)
 );
+GO
 
+CREATE TABLE Payment
+(
+    PId VARCHAR(5) PRIMARY KEY,
+    P_Method VARCHAR(10),
+    P_DateTime DATETIME2,
+    OId VARCHAR(4),
+    FOREIGN KEY (OId) REFERENCES Orders(OId),
+    CONSTRAINT check_P_Method CHECK(
+        P_Method IN(
+            'Cash',
+            'Credit Card',
+            'Qr Code'
+        )
+    )
+);
+GO
 
 CREATE TABLE EmployeeReview
 (
@@ -153,26 +165,27 @@ CREATE TABLE EmployeeReview
     Rating INT CHECK (Rating BETWEEN 1 AND 5),
     Comment VARCHAR(100),
     ReviewDateTime DATETIME2
-)
+);
+GO
 
 CREATE TABLE Reviews_employee
 (
-    REId VARCHAR(5) ,
+    REId VARCHAR(5),
     EId VARCHAR(10),
     PRIMARY KEY (REId, EId),
     FOREIGN KEY (REId) REFERENCES EmployeeReview(REId),
     FOREIGN KEY (EId) REFERENCES Employee(EId)
 );
+GO
 
 CREATE TABLE OrderReview
 (
-    ROId VARCHAR(4) PRIMARY KEY ,
-    Rating INT NOT NULL ,
+    ROId VARCHAR(4) PRIMARY KEY,
+    Rating INT NOT NULL,
     CONSTRAINT check_Rating CHECK (Rating BETWEEN 1 AND 5),
     Comment VARCHAR(100),
     ReviewDateTime DATETIME2,
     OId VARCHAR(4),
     FOREIGN KEY (OId) REFERENCES Orders(OId)
-)
-
-
+);
+GO
