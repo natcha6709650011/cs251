@@ -484,23 +484,56 @@ function App() {
     setPage("menu-detail");
   }
 
-  function addToCart(menu, options) {
-    if (!menu) return;
+  function addToCart(menuArg, optionsArg) {
+    const menu = menuArg || selectedMenu;
+    const options = optionsArg || menuOptions;
+
+    if (!menu) {
+      alert("ไม่พบข้อมูลเมนู");
+      return;
+    }
 
     const finalPrice = calculateItemPrice(menu, options);
+
+    const toppings = Array.isArray(options.toppings)
+      ? options.toppings
+      : options.topping
+      ? [options.topping]
+      : [];
 
     const newItem = {
       cartId: generateId("CART"),
       menuId: menu.id,
-      name: menu.name,
-      image: menu.image,
-      basePrice: menu.price,
-      finalPrice,
-      options,
+      id: menu.id,
+      name: menu.name || menu.MName || "",
+      menuName: menu.name || menu.MName || "",
+      image: menu.image || "",
+      price: Number(menu.price || 0),
+      basePrice: Number(menu.price || 0),
+      finalPrice: Number(finalPrice || menu.price || 0),
+      options: {
+        ...options,
+        size: options.size || "ธรรมดา",
+        topping: options.topping || "",
+        toppings,
+        drinkType: options.drinkType || "",
+        sweetness: options.sweetness || "",
+        note: options.note || "",
+      },
       quantity: 1,
     };
 
     setCart((prev) => [...prev, newItem]);
+
+    setMenuOptions({
+      size: "ธรรมดา",
+      topping: "",
+      toppings: [],
+      drinkType: "",
+      sweetness: "",
+      note: "",
+    });
+
     setSelectedMenu(null);
     setPage("order-food");
   }
@@ -982,7 +1015,7 @@ function confirmOrder() {
           selectedMenu={selectedMenu}
           menuOptions={menuOptions}
           setMenuOptions={setMenuOptions}
-          onAddToCart={addToCart}
+          onAddToCart={() => addToCart(selectedMenu, menuOptions)}
           onBack={() => setPage("order-food")}
         />
       )}
