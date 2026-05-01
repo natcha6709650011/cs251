@@ -5,12 +5,19 @@ CREATE TABLE Employee
     ESurName VARCHAR(25),
     ETel VARCHAR(10),
     ERole VARCHAR(20),
+    EStatus VARCHAR(20),
     CONSTRAINT check_ERole CHECK(
         ERole IN(
             'พนักงานเสิรฟ',
             'แคชเชียร',
             'ผู้จัดการร้าน',
             'พ่อครัว'
+        )
+    ),
+    CONSTRAINT check_EStatus CHECK(
+        EStatus IN(
+            'กำลังทำงาน',
+            'ลาออก'
         )
     )
 );
