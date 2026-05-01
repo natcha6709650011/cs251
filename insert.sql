@@ -1,25 +1,3 @@
-USE cs251;
-GO
-
-DECLARE @dropSql NVARCHAR(MAX) = N'';
-
-SELECT @dropSql = @dropSql + N'ALTER TABLE '
-    + QUOTENAME(OBJECT_SCHEMA_NAME(parent_object_id)) + N'.'
-    + QUOTENAME(OBJECT_NAME(parent_object_id))
-    + N' DROP CONSTRAINT ' + QUOTENAME(name) + N';' + CHAR(13)
-FROM sys.check_constraints
-WHERE OBJECT_NAME(parent_object_id) IN ('Employee', 'Tables', 'Category', 'Menu', 'Orders', 'Payment');
-
-IF LEN(@dropSql) > 0
-    EXEC sp_executesql @dropSql;
-GO
-
-IF COL_LENGTH('Employee', 'EStatus') IS NULL
-BEGIN
-    ALTER TABLE Employee ADD EStatus VARCHAR(20);
-END
-GO
-
 INSERT INTO Employee (EId, EFirstName, ESurName, ETel, ERole, EStatus)
 VALUES
 ('E123456', 'khayan', 'rakdee', '0811111111', 'staff', 'active');
@@ -70,6 +48,7 @@ VALUES
 ('013', 'cha mali', 45, 'available'),
 ('014', 'cha dam', 40, 'available'),
 ('015', 'nom sod', 45, 'available'),
+
 ('016', 'khao phad gaprao moo sap', 60, 'available'),
 ('017', 'khao phad gaprao gai', 60, 'available'),
 ('018', 'khao phad gaprao muek', 70, 'available'),
@@ -85,6 +64,7 @@ VALUES
 ('028', 'suki haeng', 70, 'available'),
 ('029', 'suki nam', 70, 'available'),
 ('030', 'khao moo kratiem', 60, 'available'),
+
 ('031', 'french fries', 59, 'available'),
 ('032', 'gai pop', 69, 'available'),
 ('033', 'goong chup paeng tod', 89, 'available'),
@@ -92,6 +72,7 @@ VALUES
 ('035', 'nugget', 59, 'available'),
 ('036', 'cheese ball', 59, 'available'),
 ('037', 'khanom pang ob ainam', 49, 'available'),
+
 ('038', 'sala loi kaew', 45, 'available'),
 ('039', 'chao kuai', 35, 'available'),
 ('040', 'panna cotta', 55, 'available'),
@@ -100,6 +81,7 @@ VALUES
 ('043', 'ice cream manao', 45, 'available'),
 ('044', 'ice cream strawberry', 45, 'available'),
 ('045', 'ice cream vanilla', 45, 'available'),
+
 ('046', 'nam plao', 15, 'available'),
 ('047', 'nam som kan sod', 45, 'available'),
 ('048', 'nam manao', 45, 'available'),
@@ -134,6 +116,7 @@ VALUES
 ('01', '013'),
 ('01', '014'),
 ('01', '015'),
+
 ('02', '016'),
 ('02', '017'),
 ('02', '018'),
@@ -149,6 +132,7 @@ VALUES
 ('02', '028'),
 ('02', '029'),
 ('02', '030'),
+
 ('03', '031'),
 ('03', '032'),
 ('03', '033'),
@@ -156,6 +140,7 @@ VALUES
 ('03', '035'),
 ('03', '036'),
 ('03', '037'),
+
 ('04', '038'),
 ('04', '039'),
 ('04', '040'),
@@ -164,6 +149,7 @@ VALUES
 ('04', '043'),
 ('04', '044'),
 ('04', '045'),
+
 ('05', '046'),
 ('05', '047'),
 ('05', '048'),
@@ -197,61 +183,3 @@ VALUES
 ('G00001');
 GO
 
-ALTER TABLE Employee
-ADD CONSTRAINT check_ERole CHECK (ERole IN ('staff', 'cashier', 'manager', 'chef'));
-GO
-
-ALTER TABLE Employee
-ADD CONSTRAINT check_EStatus CHECK (EStatus IN ('active', 'inactive', 'resigned'));
-GO
-
-ALTER TABLE Tables
-ADD CONSTRAINT check_T_Type CHECK (T_Type IN ('small', 'medium', 'large'));
-GO
-
-ALTER TABLE Tables
-ADD CONSTRAINT check_TStatus CHECK (TStatus IN ('available', 'not available'));
-GO
-
-ALTER TABLE Category
-ADD CONSTRAINT check_category_name CHECK (Category_Name IN ('recommended', 'food', 'snack', 'dessert', 'drink'));
-GO
-
-ALTER TABLE Menu
-ADD CONSTRAINT check_MenuStatus CHECK (MenuStatus IN ('available', 'not available'));
-GO
-
-IF COL_LENGTH('Payment', 'P_Method') IS NOT NULL
-BEGIN
-    ALTER TABLE Payment
-    ADD CONSTRAINT check_P_Method CHECK (P_Method IN ('Cash', 'Credit Card', 'Qr Code', 'QR Code'));
-END
-GO
-
-IF COL_LENGTH('Orders', 'OStatus') IS NOT NULL
-BEGIN
-    EXEC('ALTER TABLE Orders ADD CONSTRAINT check_OStatus CHECK (OStatus IN (''pending'', ''paid'', ''cancelled''))');
-END
-GO
-
-SELECT 'Employee' AS TableName, COUNT(*) AS TotalRows FROM Employee
-UNION ALL SELECT 'Tables', COUNT(*) FROM Tables
-UNION ALL SELECT 'Category', COUNT(*) FROM Category
-UNION ALL SELECT 'Menu', COUNT(*) FROM Menu
-UNION ALL SELECT 'Categorizers', COUNT(*) FROM Categorizers
-UNION ALL SELECT 'Customer', COUNT(*) FROM Customer
-UNION ALL SELECT 'Member', COUNT(*) FROM Member
-UNION ALL SELECT 'General', COUNT(*) FROM General
-UNION ALL SELECT 'Reservation', COUNT(*) FROM Reservation
-UNION ALL SELECT 'Orders', COUNT(*) FROM Orders
-UNION ALL SELECT 'OrderDetails', COUNT(*) FROM OrderDetails
-UNION ALL SELECT 'Payment', COUNT(*) FROM Payment
-UNION ALL SELECT 'EmployeeReview', COUNT(*) FROM EmployeeReview
-UNION ALL SELECT 'Reviews_employee', COUNT(*) FROM Reviews_employee
-UNION ALL SELECT 'OrderReview', COUNT(*) FROM OrderReview;
-GO
-
-SELECT MenuId, MenuName, Price, MenuStatus
-FROM Menu
-ORDER BY MenuId;
-GO

@@ -33,21 +33,81 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import ReviewPage from "./pages/ReviewPage";
 import ThankYou from "./pages/ThankYou";
 
-const RESERVATION_DURATION_MINUTES = 90;
+const API_BASE_URL =
+  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? "http://localhost:4000"
+    : `http://${window.location.hostname}:4000`;
 
-function timeToMinutes(time) {
-  if (!time) return 0;
-  const [hour, minute] = String(time).split(":").map(Number);
-  return hour * 60 + minute;
+async function apiRequest(path, options = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok || data.success === false) {
+    throw new Error(data.error || data.message || `API error ${response.status}`);
+  }
+
+  return data;
 }
 
-function isTimeOverlap(startA, endA, startB, endB) {
-  return startA < endB && startB < endA;
+function dbTableToUiTable(table) {
+  const rawStatus = table.Status || table.TStatus || "available";
+  const uiStatus =
+    rawStatus === "available" || rawStatus === "ว่าง" ? "ว่าง" : "ไม่ว่าง";
+
+  return {
+    ...table,
+    Status: uiStatus,
+    TStatus: rawStatus,
+  };
 }
 
-function isActiveReservation(reservation) {
-  return reservation.status === "reserved" || reservation.status === "checked_in";
+function uiPaymentToDb(method) {
+  const map = {
+    "เงินสด": "Cash",
+    "สแกนคิวอาร์โค้ด": "Qr Code",
+    "บัตรเครดิต/เดบิต": "Credit Card",
+    Cash: "Cash",
+    "Qr Code": "Qr Code",
+    "QR Code": "Qr Code",
+    "Credit Card": "Credit Card",
+  };
+
+  return map[method] || method || "Cash";
 }
+
+
+function sanitizeCartItemForApi(item) {
+  const safeOptions = item?.options
+    ? {
+        size: item.options.size || "",
+        topping: item.options.topping || "",
+        toppings: Array.isArray(item.options.toppings) ? item.options.toppings : [],
+        drinkType: item.options.drinkType || "",
+        sweetness: item.options.sweetness || "",
+        note: item.options.note || "",
+      }
+    : {};
+
+  return {
+    cartId: item.cartId || "",
+    menuId: item.menuId || item.MenuId || item.id || "",
+    MenuId: item.menuId || item.MenuId || item.id || "",
+    name: item.name || item.menuName || item.MenuName || "",
+    price: Number(item.price || item.finalPrice || item.unitPrice || item.UnitPrice || 0),
+    finalPrice: Number(item.finalPrice || item.price || item.unitPrice || item.UnitPrice || 0),
+    basePrice: Number(item.basePrice || item.price || item.finalPrice || 0),
+    quantity: Number(item.quantity || 1),
+    options: safeOptions,
+  };
+}
+
 
 function App() {
   const [db, setDb] = useState(() => loadDB());
@@ -75,7 +135,7 @@ function App() {
 
   const [reservationDate, setReservationDate] = useState("");
   const [reservationTime, setReservationTime] = useState("");
-  const [peopleCount, setPeopleCount] = useState(1);
+  const [peopleCount, setPeopleCount] = useState("");
   const [selectedReservation, setSelectedReservation] = useState(null);
 
   const [activeCategory, setActiveCategory] = useState("recommended");
@@ -93,6 +153,7 @@ function App() {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [reviewCode, setReviewCode] = useState("");
   const [reviewCustomer, setReviewCustomer] = useState(null);
+  const [remoteReviewData, setRemoteReviewData] = useState(null);
 
   useEffect(() => {
     saveDB(db);
@@ -102,13 +163,53 @@ function App() {
     const path = window.location.pathname;
 
     if (path.startsWith("/review/")) {
-      const code = path.split("/review/")[1];
+      const code = decodeURIComponent(path.split("/review/")[1] || "");
 
       if (code) {
         setReviewCode(code);
         setPage("review");
       }
     }
+  }, []);
+
+
+  useEffect(() => {
+    async function loadRemoteReviewSession() {
+      if (page !== "review" || !reviewCode) return;
+
+      try {
+        const result = await apiRequest(`/api/review-sessions/${encodeURIComponent(reviewCode)}`);
+        if (result?.data) {
+          setRemoteReviewData(result.data);
+        }
+      } catch (error) {
+        console.warn("Remote review session not found:", error.message);
+      }
+    }
+
+    loadRemoteReviewSession();
+  }, [page, reviewCode]);
+
+  useEffect(() => {
+    async function syncInitialDataFromBackend() {
+      try {
+        const [tableRes] = await Promise.all([
+          apiRequest("/api/tables"),
+        ]);
+
+        if (Array.isArray(tableRes.data)) {
+          updateDB((prev) => ({
+            ...prev,
+            tables: tableRes.data.map(dbTableToUiTable),
+          }));
+        }
+      } catch (error) {
+        console.warn("Initial backend sync failed:", error.message);
+      }
+    }
+
+    syncInitialDataFromBackend();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const currentReservations = useMemo(() => {
@@ -119,15 +220,62 @@ function App() {
     );
   }, [db.reservations, customer]);
 
+
+  function enrichOrderItemsWithMenuData(items) {
+    return (items || []).map((item) => {
+      const menuId = item.menuId || item.MenuId || item.id;
+      const menu = db.menus.find(
+        (m) => m.id === menuId || m.menuId === menuId || m.MenuId === menuId
+      );
+
+      const image =
+        item.image ||
+        item.img ||
+        item.imageUrl ||
+        item.menuImage ||
+        item.MenuImage ||
+        menu?.image ||
+        menu?.img ||
+        "";
+
+      const name =
+        item.name ||
+        item.menuName ||
+        item.MenuName ||
+        menu?.name ||
+        menu?.MenuName ||
+        "";
+
+      return {
+        ...item,
+        name,
+        menuName: name,
+        MenuName: name,
+        image,
+        img: image,
+        imageUrl: image,
+        menuImage: image,
+        MenuImage: image,
+        photo: image,
+        picture: image,
+      };
+    });
+  }
+
   const tableOrders = useMemo(() => {
     if (!selectedTable) return [];
 
-    return db.orders.filter(
-      (order) =>
-        order.tableNumber === selectedTable.TNumber &&
-        order.status !== "paid"
-    );
-  }, [db.orders, selectedTable]);
+    return db.orders
+      .filter(
+        (order) =>
+          order.tableNumber === selectedTable.TNumber &&
+          order.status !== "paid"
+      )
+      .map((order) => ({
+        ...order,
+        items: enrichOrderItemsWithMenuData(order.items),
+      }));
+  }, [db.orders, selectedTable, db.menus]);
 
   const cartTotal = calculateCartTotal(cart);
   const cartCount = getCartCount(cart);
@@ -150,14 +298,14 @@ function App() {
 
     setReservationDate("");
     setReservationTime("");
-    setPeopleCount(1);
+    setPeopleCount("");
     setSelectedReservation(null);
 
     setActiveCategory("recommended");
     setSelectedMenu(null);
     setMenuOptions({
       size: "ธรรมดา",
-      toppings: [],
+      topping: "",
       drinkType: "",
       sweetness: "",
       note: "",
@@ -169,20 +317,45 @@ function App() {
     setReviewCustomer(null);
   }
 
-  function handleEmployeeLogin() {
-    const foundEmployee = db.employees.find(
-      (item) =>
-        item.EId.toLowerCase() === employeeId.trim().toLowerCase() &&
-        item.EStatus === "กำลังทำงาน"
-    );
+  async function handleEmployeeLogin() {
+    const code = employeeId.trim();
 
-    if (!foundEmployee) {
-      alert("ไม่พบข้อมูลพนักงาน");
+    if (!code) {
+      alert("กรุณากรอกรหัสพนักงาน");
       return;
     }
 
-    setEmployee(foundEmployee);
-    setPage("employee-confirm");
+    try {
+      const result = await apiRequest(`/api/employees/${encodeURIComponent(code)}`);
+      const foundEmployee = result.data;
+
+      if (!foundEmployee) {
+        alert("ไม่พบข้อมูลพนักงาน");
+        return;
+      }
+
+      if (foundEmployee.EStatus && foundEmployee.EStatus !== "active") {
+        alert("พนักงานไม่ได้อยู่ในสถานะ active");
+        return;
+      }
+
+      setEmployee(foundEmployee);
+      updateDB((prev) => {
+        const exists = prev.employees.some((item) => item.EId === foundEmployee.EId);
+        return {
+          ...prev,
+          employees: exists
+            ? prev.employees.map((item) =>
+                item.EId === foundEmployee.EId ? foundEmployee : item
+              )
+            : [...prev.employees, foundEmployee],
+        };
+      });
+      setPage("employee-confirm");
+    } catch (error) {
+      console.error(error);
+      alert("ไม่พบข้อมูลพนักงาน");
+    }
   }
 
   function logoutEmployee() {
@@ -207,17 +380,27 @@ function App() {
     setPage("customer-type");
   }
 
-  function handleGeneralCustomer() {
-    const generalCustomer = {
-      CId: generateId("G"),
-      type: "General",
-      name: "ลูกค้าทั่วไป",
-    };
+  async function handleGeneralCustomer() {
+    try {
+      const result = await apiRequest("/api/customers/general", {
+        method: "POST",
+        body: JSON.stringify({ customerId: `G${Date.now().toString().slice(-5)}` }),
+      });
 
-    setCustomerType("General");
-    setCustomer(generalCustomer);
-    setSelectedTable(null);
-    setPage("service-table");
+      const generalCustomer = {
+        CId: result.customerId,
+        type: "General",
+        name: "general customer",
+      };
+
+      setCustomerType("General");
+      setCustomer(generalCustomer);
+      setSelectedTable(null);
+      setPage("service-table");
+    } catch (error) {
+      console.error(error);
+      alert("เชื่อมต่อ backend ไม่ได้ กรุณาตรวจสอบ backend/database");
+    }
   }
 
   function goToMemberLogin(mode) {
@@ -226,50 +409,84 @@ function App() {
     setPage("member-login");
   }
 
-  function handleFindMember() {
+  function goToReservationHistory() {
+    setMemberMode("history");
+    setMemberTel("");
+    setPage("member-login");
+  }
+
+  async function handleFindMember() {
     if (!memberTel.trim()) {
       alert("กรุณากรอกเบอร์โทรสมาชิก");
       return;
     }
 
-    const foundMember = db.members.find(
-      (member) => member.MTel === memberTel.trim()
-    );
+    try {
+      const result = await apiRequest(`/api/members/by-phone/${encodeURIComponent(memberTel.trim())}`);
+      const foundMember = result.data;
 
-    if (!foundMember) {
+      setCustomerType("Member");
+      setCustomer(foundMember);
+
+      updateDB((prev) => {
+        const exists = prev.members.some((member) => member.CId === foundMember.CId);
+        return {
+          ...prev,
+          members: exists
+            ? prev.members.map((member) =>
+                member.CId === foundMember.CId ? foundMember : member
+              )
+            : [...prev.members, foundMember],
+        };
+      });
+
+      if (memberMode === "reserve") {
+        setPage("reservation-page");
+        return;
+      }
+
+      let memberReservations = [];
+      try {
+        const reservationResult = await apiRequest(`/api/reservations/customer/${encodeURIComponent(foundMember.CId)}`);
+        memberReservations = Array.isArray(reservationResult.data)
+          ? reservationResult.data.map((item) => ({
+              RId: item.RId,
+              customerId: item.CId,
+              tableNumber: item.TNumber,
+              RDate: typeof item.RDate === "string" ? item.RDate.slice(0, 10) : item.RDate,
+              RTime: typeof item.RTime === "string" ? item.RTime.slice(0, 5) : item.RTime,
+              PeopleCount: item.PeopleCount || 1,
+              status: item.status || "reserved",
+            }))
+          : [];
+      } catch (reservationError) {
+        console.warn("Cannot load reservation history:", reservationError.message);
+      }
+
+      updateDB((prev) => ({
+        ...prev,
+        reservations: [
+          ...prev.reservations.filter((reservation) => reservation.customerId !== foundMember.CId),
+          ...memberReservations,
+        ],
+      }));
+
+      if (memberMode === "history") {
+        setPage("reservation-history");
+        return;
+      }
+
+      // กดปุ่ม Member = ต้องไปหน้าเลือกโต๊ะ/สั่งอาหารเสมอ
+      // ไม่ auto เด้งไปประวัติการจอง ถึงแม้สมาชิกจะเคยมี reservation
+      setSelectedTable(null);
+      setPage("service-table");
+    } catch (error) {
+      console.error(error);
       alert("ไม่พบสมาชิก กรุณาสมัครสมาชิกก่อน");
-      return;
     }
-
-    setCustomerType("Member");
-    setCustomer(foundMember);
-
-    if (memberMode === "reserve") {
-      setPage("reservation-page");
-      return;
-    }
-
-    if (memberMode === "history") {
-      setPage("reservation-history");
-      return;
-    }
-
-    const memberReservations = db.reservations.filter(
-      (reservation) =>
-        reservation.customerId === foundMember.CId &&
-        reservation.status === "reserved"
-    );
-
-    if (memberReservations.length > 0) {
-      setPage("reservation-history");
-      return;
-    }
-
-    setSelectedTable(null);
-    setPage("service-table");
   }
 
-  function handleRegisterSubmit() {
+  async function handleRegisterSubmit() {
     const { firstName, lastName, tel, email } = registerForm;
 
     if (!firstName || !lastName || !tel || !email) {
@@ -277,34 +494,51 @@ function App() {
       return;
     }
 
-    const existingMember = db.members.find(
-      (member) => member.MTel === tel.trim()
-    );
+    try {
+      try {
+        await apiRequest(`/api/members/by-phone/${encodeURIComponent(tel.trim())}`);
+        alert("เบอร์นี้สมัครสมาชิกแล้ว ระบบจะใช้ข้อมูลเดิม");
+        const existingResult = await apiRequest(`/api/members/by-phone/${encodeURIComponent(tel.trim())}`);
+        const existingMember = existingResult.data;
+        setCustomerType("Member");
+        setCustomer(existingMember);
+        setPage("register-success");
+        return;
+      } catch (checkError) {
+        // 404 = ยังไม่มีสมาชิก ใช้สมัครใหม่ได้
+      }
 
-    if (existingMember) {
-      alert("เบอร์นี้สมัครสมาชิกแล้ว ระบบจะใช้ข้อมูลเดิม");
+      const result = await apiRequest("/api/members", {
+        method: "POST",
+        body: JSON.stringify({
+          customerId: `M${Date.now().toString().slice(-5)}`,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          tel: tel.trim().slice(0, 10),
+          email: email.trim(),
+        }),
+      });
+
+      const newMember = result.member || {
+        CId: result.customerId,
+        MFirstName: firstName.trim(),
+        MSurName: lastName.trim(),
+        MTel: tel.trim(),
+        MEmail: email.trim(),
+      };
+
+      updateDB((prev) => ({
+        ...prev,
+        members: [...prev.members.filter((member) => member.CId !== newMember.CId), newMember],
+      }));
+
       setCustomerType("Member");
-      setCustomer(existingMember);
+      setCustomer(newMember);
       setPage("register-success");
-      return;
+    } catch (error) {
+      console.error(error);
+      alert(`สมัครสมาชิกไม่สำเร็จ: ${error.message}`);
     }
-
-    const newMember = {
-      CId: generateId("MB"),
-      MFirstName: firstName.trim(),
-      MSurName: lastName.trim(),
-      MTel: tel.trim(),
-      MEmail: email.trim(),
-    };
-
-    updateDB((prev) => ({
-      ...prev,
-      members: [...prev.members, newMember],
-    }));
-
-    setCustomerType("Member");
-    setCustomer(newMember);
-    setPage("register-success");
   }
 
   function goAfterRegisterSuccess() {
@@ -317,13 +551,19 @@ function App() {
     setPage("service-table");
   }
 
-  function handleSelectServiceTable(table) {
-    if (table?.reservedForWalkIn) {
-      alert(`โต๊ะนี้มีการจองเวลา ${table.reservedTime || "นี้"} กรุณาเลือกโต๊ะอื่น`);
+  async function handleSelectServiceTable(table) {
+    setSelectedTable(table);
+
+    try {
+      await apiRequest(`/api/tables/${table.TNumber}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "not available" }),
+      });
+    } catch (error) {
+      console.error(error);
+      alert(`เลือกโต๊ะไม่สำเร็จ: ${error.message}`);
       return;
     }
-
-    setSelectedTable(table);
 
     updateDB((prev) => ({
       ...prev,
@@ -341,6 +581,7 @@ function App() {
         return {
           ...item,
           Status: "ไม่ว่าง",
+          TStatus: "not available",
           employeeId: currentEmployeeId || item.employeeId || "",
           employeeIds: newEmployeeIds,
         };
@@ -350,7 +591,7 @@ function App() {
     setPage("order-food");
   }
 
-  function handleCreateReservation({ table, date, time, count }) {
+  async function handleCreateReservation({ table, date, time, count }) {
     if (!customer) {
       alert("กรุณาเลือกสมาชิกก่อนจองโต๊ะ");
       return;
@@ -361,54 +602,60 @@ function App() {
       return;
     }
 
-    const newStart = timeToMinutes(time);
-    const newEnd = newStart + RESERVATION_DURATION_MINUTES;
+    try {
+      const result = await apiRequest("/api/reservations", {
+        method: "POST",
+        body: JSON.stringify({
+          customerId: customer.CId,
+          tableNumber: table.TNumber,
+          date,
+          time,
+          count: Number(count) || 1,
+        }),
+      });
 
-    const alreadyReserved = db.reservations.some((reservation) => {
-      if (!isActiveReservation(reservation)) return false;
-      if (reservation.tableNumber !== table.TNumber) return false;
-      if (reservation.RDate !== date) return false;
+      const newReservation = {
+        RId: result.reservationId,
+        customerId: customer.CId,
+        tableNumber: table.TNumber,
+        RDate: date,
+        RTime: time,
+        PeopleCount: Number(count) || 1,
+        status: "reserved",
+        createdAt: new Date().toISOString(),
+      };
 
-      const oldStart = timeToMinutes(reservation.RTime);
-      const oldDuration = reservation.durationMinutes || RESERVATION_DURATION_MINUTES;
-      const oldEnd = oldStart + oldDuration;
+      updateDB((prev) => ({
+        ...prev,
+        reservations: [...prev.reservations, newReservation],
+      }));
 
-      return isTimeOverlap(newStart, newEnd, oldStart, oldEnd);
-    });
-
-    if (alreadyReserved) {
-      alert("โต๊ะนี้ถูกจองแล้วในช่วงเวลาที่เลือก กรุณาเลือกโต๊ะหรือเวลาอื่น");
-      return;
+      setSelectedReservation(newReservation);
+      setReservationDate("");
+      setReservationTime("");
+      setPeopleCount("");
+      setPage("reservation-success");
+    } catch (error) {
+      console.error(error);
+      alert(`จองโต๊ะไม่สำเร็จ: ${error.message}`);
     }
-
-    const newReservation = {
-      RId: generateId("R"),
-      customerId: customer.CId,
-      tableNumber: table.TNumber,
-      RDate: date,
-      RTime: time,
-      durationMinutes: RESERVATION_DURATION_MINUTES,
-      PeopleCount: count,
-      status: "reserved",
-      createdAt: new Date().toISOString(),
-    };
-
-    updateDB((prev) => ({
-      ...prev,
-      reservations: [...prev.reservations, newReservation],
-    }));
-
-    setSelectedReservation(newReservation);
-    setReservationDate("");
-    setReservationTime("");
-    setPeopleCount(1);
-    setPage("reservation-success");
   }
 
-  function handleCheckInReservation(reservation) {
+  async function handleCheckInReservation(reservation) {
     const table = db.tables.find(
       (item) => item.TNumber === reservation.tableNumber
     );
+
+    try {
+      await apiRequest(`/api/tables/${reservation.tableNumber}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "not available" }),
+      });
+    } catch (error) {
+      console.error(error);
+      alert("Check-in ไม่สำเร็จ กรุณาตรวจสอบ backend/database");
+      return;
+    }
 
     updateDB((prev) => ({
       ...prev,
@@ -420,23 +667,16 @@ function App() {
             }
           : item
       ),
-      tables: prev.tables.map((item) => {
-        if (item.TNumber !== reservation.tableNumber) return item;
-
-        const oldEmployeeIds = item.employeeIds || [];
-        const currentEmployeeId = employee?.EId;
-        const newEmployeeIds =
-          currentEmployeeId && !oldEmployeeIds.includes(currentEmployeeId)
-            ? [...oldEmployeeIds, currentEmployeeId]
-            : oldEmployeeIds;
-
-        return {
-          ...item,
-          Status: "ไม่ว่าง",
-          employeeId: currentEmployeeId || item.employeeId || "",
-          employeeIds: newEmployeeIds,
-        };
-      }),
+      tables: prev.tables.map((item) =>
+        item.TNumber === reservation.tableNumber
+          ? {
+              ...item,
+              Status: "ไม่ว่าง",
+              TStatus: "not available",
+              employeeId: employee?.EId || "",
+            }
+          : item
+      ),
     }));
 
     setSelectedReservation({
@@ -448,9 +688,21 @@ function App() {
     setPage("order-food");
   }
 
-  function handleCancelReservation(reservation) {
+  async function handleCancelReservation(reservation) {
     if (reservation.status === "checked_in") {
       alert("ไม่สามารถยกเลิกได้ เพราะ Check-in แล้ว");
+      return;
+    }
+
+    try {
+      if (reservation.RId && !String(reservation.RId).startsWith("R")) {
+        await apiRequest(`/api/reservations/${reservation.RId}`, {
+          method: "DELETE",
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      alert("ยกเลิกการจองไม่สำเร็จ กรุณาตรวจสอบ backend/database");
       return;
     }
 
@@ -476,7 +728,7 @@ function App() {
     setSelectedMenu(menu);
     setMenuOptions({
       size: "ธรรมดา",
-      toppings: [],
+      topping: "",
       drinkType: "",
       sweetness: "",
       note: "",
@@ -484,84 +736,113 @@ function App() {
     setPage("menu-detail");
   }
 
-  function addToCart(menuArg, optionsArg) {
-    const menu = menuArg || selectedMenu;
-    const options = optionsArg || menuOptions;
+  function addToCart(menuOrOptions, maybeOptions) {
+    // รองรับทั้ง 2 แบบ:
+    // 1) simple menu เรียก addToCart(menu, {})
+    // 2) menu-detail บาง component เรียก addToCart(options) โดยไม่ได้ส่ง selectedMenu มา
+    const looksLikeMenu =
+      menuOrOptions &&
+      (menuOrOptions.id ||
+        menuOrOptions.menuId ||
+        menuOrOptions.MenuId ||
+        menuOrOptions.name ||
+        menuOrOptions.MenuName ||
+        menuOrOptions.price ||
+        menuOrOptions.Price);
 
-    if (!menu) {
-      alert("ไม่พบข้อมูลเมนู");
-      return;
-    }
+    const menu = looksLikeMenu ? menuOrOptions : selectedMenu;
+    const options = looksLikeMenu ? maybeOptions || {} : menuOrOptions || {};
+
+    if (!menu) return;
 
     const finalPrice = calculateItemPrice(menu, options);
+    const safePrice =
+      Number(finalPrice) ||
+      Number(menu.price) ||
+      Number(menu.Price) ||
+      Number(menu.basePrice) ||
+      0;
 
-    const toppings = Array.isArray(options.toppings)
-      ? options.toppings
-      : options.topping
-      ? [options.topping]
-      : [];
+    const menuName = menu.name || menu.MenuName || menu.menuName || "";
+    const menuImage = menu.image || menu.Image || menu.img || "";
 
     const newItem = {
       cartId: generateId("CART"),
-      menuId: menu.id,
-      id: menu.id,
-      name: menu.name || menu.MName || "",
-      menuName: menu.name || menu.MName || "",
-      image: menu.image || "",
-      price: Number(menu.price || 0),
-      basePrice: Number(menu.price || 0),
-      finalPrice: Number(finalPrice || menu.price || 0),
-      options: {
-        ...options,
-        size: options.size || "ธรรมดา",
-        topping: options.topping || "",
-        toppings,
-        drinkType: options.drinkType || "",
-        sweetness: options.sweetness || "",
-        note: options.note || "",
-      },
+
+      // menu id aliases
+      menuId: menu.menuId || menu.MenuId || menu.id,
+      MenuId: menu.menuId || menu.MenuId || menu.id,
+      id: menu.id || menu.MenuId || menu.menuId,
+
+      // name aliases: กัน Cart component เรียกคนละชื่อ
+      name: menuName,
+      menuName: menuName,
+      MenuName: menuName,
+
+      // image aliases
+      image: menuImage,
+      img: menuImage,
+      imageUrl: menuImage,
+      menuImage: menuImage,
+      MenuImage: menuImage,
+      photo: menuImage,
+      picture: menuImage,
+
+      // price aliases
+      price: safePrice,
+      finalPrice: safePrice,
+      unitPrice: safePrice,
+      UnitPrice: safePrice,
+      basePrice: menu.price || menu.Price || safePrice,
+
+      options: options || {},
       quantity: 1,
+      total: safePrice,
+      subtotal: safePrice,
+      SubTotal: safePrice,
     };
 
     setCart((prev) => [...prev, newItem]);
-
-    setMenuOptions({
-      size: "ธรรมดา",
-      topping: "",
-      toppings: [],
-      drinkType: "",
-      sweetness: "",
-      note: "",
-    });
-
     setSelectedMenu(null);
     setPage("order-food");
   }
 
   function increaseCartItem(cartId) {
     setCart((prev) =>
-      prev.map((item) =>
-        item.cartId === cartId
-          ? {
-              ...item,
-              quantity: item.quantity + 1,
-            }
-          : item
-      )
+      prev.map((item) => {
+        if (item.cartId !== cartId) return item;
+
+        const nextQuantity = item.quantity + 1;
+        const itemPrice = item.finalPrice || item.price || item.unitPrice || item.UnitPrice || 0;
+
+        return {
+          ...item,
+          quantity: nextQuantity,
+          total: itemPrice * nextQuantity,
+          subtotal: itemPrice * nextQuantity,
+          SubTotal: itemPrice * nextQuantity,
+        };
+      })
     );
   }
 
   function decreaseCartItem(cartId) {
     setCart((prev) =>
       prev
-        .map((item) =>
-          item.cartId === cartId
-            ? {
-                ...item,
-                quantity: item.quantity - 1,
-              }
-            : item
-        )
+        .map((item) => {
+          if (item.cartId !== cartId) return item;
+
+          const nextQuantity = item.quantity - 1;
+          const itemPrice = item.finalPrice || item.price || item.unitPrice || item.UnitPrice || 0;
+
+          return {
+            ...item,
+            quantity: nextQuantity,
+            total: itemPrice * nextQuantity,
+            subtotal: itemPrice * nextQuantity,
+            SubTotal: itemPrice * nextQuantity,
+          };
+        })
         .filter((item) => item.quantity > 0)
     );
   }
@@ -570,7 +851,7 @@ function App() {
     setCart((prev) => prev.filter((item) => item.cartId !== cartId));
   }
 
-function confirmOrder() {
+async function confirmOrder() {
   if (cart.length === 0) {
     alert("ยังไม่มีรายการในตะกร้า");
     return;
@@ -592,36 +873,54 @@ function confirmOrder() {
       ? [...tableEmployeeIds, employee.EId]
       : tableEmployeeIds;
 
-  const newOrder = {
-    orderId: generateId("O"),
-    tableNumber: selectedTable.TNumber,
-    customerId: customer?.CId || "",
-    customerType,
-    employeeId: employee?.EId || "",
-    employeeIds: finalEmployeeIds,
-    items: cart,
-    total: cartTotal,
-    status: "ordered",
-    createdAt: new Date().toISOString(),
-  };
+  try {
+    const safeCartItems = cart.map(sanitizeCartItemForApi);
 
-  updateDB((prev) => ({
-    ...prev,
-    orders: [...prev.orders, newOrder],
-    tables: prev.tables.map((table) =>
-      table.TNumber === selectedTable.TNumber
-        ? {
-            ...table,
-            Status: "ไม่ว่าง",
-            employeeId: employee?.EId || table.employeeId || "",
-            employeeIds: finalEmployeeIds,
-          }
-        : table
-    ),
-  }));
+    const result = await apiRequest("/api/orders", {
+      method: "POST",
+      body: JSON.stringify({
+        customerId: customer?.CId || "G00001",
+        employeeId: employee?.EId || "E123456",
+        tableNumber: selectedTable.TNumber,
+        items: enrichOrderItemsWithMenuData(safeCartItems),
+      }),
+    });
 
-  setCart([]);
-  setPage("order-success");
+    const newOrder = {
+      orderId: result.orderId,
+      tableNumber: selectedTable.TNumber,
+      customerId: customer?.CId || "",
+      customerType,
+      employeeId: employee?.EId || "",
+      employeeIds: finalEmployeeIds,
+      items: enrichOrderItemsWithMenuData(safeCartItems),
+      total: cartTotal,
+      status: "ordered",
+      createdAt: new Date().toISOString(),
+    };
+
+    updateDB((prev) => ({
+      ...prev,
+      orders: [...prev.orders, newOrder],
+      tables: prev.tables.map((table) =>
+        table.TNumber === selectedTable.TNumber
+          ? {
+              ...table,
+              Status: "ไม่ว่าง",
+              TStatus: "not available",
+              employeeId: employee?.EId || table.employeeId || "",
+              employeeIds: finalEmployeeIds,
+            }
+          : table
+      ),
+    }));
+
+    setCart([]);
+    setPage("order-success");
+  } catch (error) {
+    console.error(error);
+    alert(`ยืนยันคำสั่งซื้อไม่สำเร็จ: ${error.message}`);
+  }
 }
   function handleSelectPayment(method) {
     if (tableOrders.length === 0) {
@@ -646,6 +945,41 @@ function confirmOrder() {
       ),
     ].filter(Boolean);
 
+    const reviewOrders = currentOrders.map((order) => ({
+      orderId: order.orderId,
+      items: enrichOrderItemsWithMenuData(order.items || []).map((item) => ({
+        menuId: item.menuId || item.MenuId || item.id || "",
+        menuName: item.name || item.menuName || item.MenuName || "",
+        image: item.image || item.img || item.imageUrl || item.menuImage || "",
+        quantity: item.quantity || 1,
+        orderId: order.orderId,
+      })),
+    }));
+
+    const reviewData = {
+      session: {
+        reviewCode: code,
+        customerId: customer.CId,
+        tableNumber: selectedTable?.TNumber || "",
+        orderIds: currentOrders.map((order) => order.orderId),
+        employeeIds,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+      },
+      customer: {
+        CId: customer.CId,
+        MFirstName: customer.MFirstName || customer.firstName || "",
+        MSurName: customer.MSurName || customer.lastName || "",
+        MTel: customer.MTel || customer.tel || "",
+        MEmail: customer.MEmail || customer.email || "",
+      },
+      employees: db.employees.filter((employeeItem) =>
+        employeeIds.includes(employeeItem.EId)
+      ),
+      orders: reviewOrders,
+      experienceTopics: db.experienceTopics,
+    };
+
     const newReviewSession = {
       reviewCode: code,
       customerId: customer.CId,
@@ -661,10 +995,21 @@ function confirmOrder() {
       reviewSessions: [...prev.reviewSessions, newReviewSession],
     }));
 
+    // สำคัญ: เก็บข้อมูล review ไว้ที่ backend เพื่อให้มือถืออีกเครื่องสแกน QR แล้วดึงได้
+    apiRequest("/api/review-sessions", {
+      method: "POST",
+      body: JSON.stringify({
+        code,
+        data: reviewData,
+      }),
+    }).catch((error) => {
+      console.warn("Save review session failed:", error.message);
+    });
+
     return code;
   }
 
-  function confirmPayment() {
+  async function confirmPayment() {
     const currentOrders = tableOrders;
 
     if (currentOrders.length === 0) {
@@ -672,7 +1017,23 @@ function confirmOrder() {
       return;
     }
 
-    const paidAt = new Date().toISOString();
+    try {
+      for (const order of currentOrders) {
+        await apiRequest("/api/payments", {
+          method: "POST",
+          body: JSON.stringify({
+            orderId: order.orderId,
+            method: uiPaymentToDb(paymentMethod),
+            tableNumber: selectedTable?.TNumber || "",
+            total: order.total || billTotal,
+          }),
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      alert("ชำระเงินไม่สำเร็จ กรุณาตรวจสอบ backend/database");
+      return;
+    }
 
     const payment = {
       paymentId: generateId("P"),
@@ -682,7 +1043,7 @@ function confirmOrder() {
       method: paymentMethod,
       total: billTotal,
       status: "paid",
-      createdAt: paidAt,
+      createdAt: new Date().toISOString(),
       orderIds: currentOrders.map((order) => order.orderId),
     };
 
@@ -694,22 +1055,16 @@ function confirmOrder() {
           ? {
               ...order,
               status: "paid",
-              paidAt,
-              paymentId: payment.paymentId,
             }
           : order
       ),
-      // เคลียร์โต๊ะอัตโนมัติทันทีหลังยืนยันการชำระเงิน
-      // ใช้ได้ทุกวิธีชำระเงิน: เงินสด / QR Code / บัตรเครดิต-เดบิต
       tables: prev.tables.map((table) =>
         table.TNumber === selectedTable?.TNumber
           ? {
               ...table,
               Status: "ว่าง",
+              TStatus: "available",
               employeeId: "",
-              employeeIds: [],
-              customerId: "",
-              customerName: "",
             }
           : table
       ),
@@ -722,51 +1077,63 @@ function confirmOrder() {
       setReviewCode("");
     }
 
-    // อัปเดต selectedTable ใน state ให้เป็นโต๊ะว่างด้วย เพื่อไม่ให้ Header แสดงสถานะเก่า
-    setSelectedTable((prev) =>
-      prev
-        ? {
-            ...prev,
-            Status: "ว่าง",
-            employeeId: "",
-            employeeIds: [],
-            customerId: "",
-            customerName: "",
-          }
-        : prev
-    );
-
-    setCart([]);
-    setPaymentMethod("");
     setPage("payment-success");
   }
 
-  function clearTable() {
-    // ปุ่มกลับหน้าเลือกประเภทลูกค้าหลังชำระเงิน
-    // โต๊ะถูกเคลียร์ตั้งแต่ confirmPayment แล้ว แต่เก็บไว้เพื่อกันกรณีเข้ามาจาก flow อื่น
-    if (selectedTable) {
-      updateDB((prev) => ({
-        ...prev,
-        tables: prev.tables.map((table) =>
-          table.TNumber === selectedTable.TNumber
-            ? {
-                ...table,
-                Status: "ว่าง",
-                employeeId: "",
-                employeeIds: [],
-                customerId: "",
-                customerName: "",
-              }
-            : table
-        ),
-      }));
+  async function clearTable() {
+    if (!selectedTable) {
+      setPage("customer-type");
+      return;
     }
+
+    try {
+      await apiRequest(`/api/tables/${selectedTable.TNumber}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "available" }),
+      });
+    } catch (error) {
+      console.error(error);
+    }
+
+    updateDB((prev) => ({
+      ...prev,
+      tables: prev.tables.map((table) =>
+        table.TNumber === selectedTable.TNumber
+          ? {
+              ...table,
+              Status: "ว่าง",
+              TStatus: "available",
+              employeeId: "",
+            }
+          : table
+      ),
+    }));
 
     resetCustomerFlow();
     setPage("customer-type");
   }
 
   function getReviewSessionData() {
+    if (remoteReviewData) {
+      const menus = (remoteReviewData.orders || []).flatMap((order) =>
+        (order.items || []).map((item) => ({
+          menuId: item.menuId,
+          menuName: item.menuName || item.name || "",
+          image: item.image || item.img || item.imageUrl || "",
+          quantity: item.quantity || 1,
+          orderId: item.orderId || order.orderId,
+        }))
+      );
+
+      return {
+        session: remoteReviewData.session,
+        customer: remoteReviewData.customer,
+        employees: remoteReviewData.employees || [],
+        menus,
+        experienceTopics: remoteReviewData.experienceTopics || db.experienceTopics,
+      };
+    }
+
     const session = db.reviewSessions.find(
       (item) => item.reviewCode === reviewCode
     );
@@ -786,10 +1153,10 @@ function confirmOrder() {
     );
 
     const menus = reviewOrders.flatMap((order) =>
-      order.items.map((item) => ({
-        menuId: item.menuId,
-        menuName: item.name,
-        image: item.image,
+      enrichOrderItemsWithMenuData(order.items || []).map((item) => ({
+        menuId: item.menuId || item.MenuId || item.id,
+        menuName: item.name || item.menuName || item.MenuName,
+        image: item.image || item.img || item.imageUrl || item.menuImage,
         quantity: item.quantity,
         orderId: order.orderId,
       }))
@@ -804,10 +1171,43 @@ function confirmOrder() {
     };
   }
 
-  function submitReview(reviewPayload) {
-    const session = db.reviewSessions.find(
-      (item) => item.reviewCode === reviewCode
-    );
+  async function submitReview(reviewPayload) {
+    const reviewData = getReviewSessionData();
+    const session =
+      reviewData?.session ||
+      db.reviewSessions.find((item) => item.reviewCode === reviewCode);
+
+    try {
+      const firstOrderId = session?.orderIds?.[0];
+      if (firstOrderId) {
+        await apiRequest("/api/reviews/order", {
+          method: "POST",
+          body: JSON.stringify({
+            orderId: firstOrderId,
+            rating: reviewPayload.orderRating || reviewPayload.foodRating || reviewPayload.rating || 5,
+            comment: reviewPayload.orderComment || reviewPayload.foodComment || reviewPayload.comment || "",
+          }),
+        });
+      }
+
+      const employeeIds = session?.employeeIds || [];
+      for (const empId of employeeIds) {
+        if (!empId) continue;
+
+        await apiRequest("/api/reviews/employee", {
+          method: "POST",
+          body: JSON.stringify({
+            employeeId: empId,
+            rating: reviewPayload.employeeRating || reviewPayload.serviceRating || reviewPayload.rating || 5,
+            comment: reviewPayload.employeeComment || reviewPayload.serviceComment || reviewPayload.comment || "",
+          }),
+        });
+      }
+    } catch (error) {
+      console.error("Review API error:", error);
+      alert(`บันทึกรีวิวลง DB ไม่สำเร็จ: ${error.message}`);
+      return;
+    }
 
     updateDB((prev) => ({
       ...prev,
@@ -831,39 +1231,13 @@ function confirmOrder() {
       ),
     }));
 
-    const member = db.members.find((item) => item.CId === session?.customerId);
+    const member =
+      reviewData?.customer ||
+      db.members.find((item) => item.CId === session?.customerId);
 
     setReviewCustomer(member || null);
     setPage("thank-you");
   }
-
-  const serviceTables = useMemo(() => {
-    const now = new Date();
-    const today = now.toISOString().slice(0, 10);
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-    return db.tables.map((table) => {
-      const activeReservation = db.reservations.find((reservation) => {
-        if (!isActiveReservation(reservation)) return false;
-        if (reservation.tableNumber !== table.TNumber) return false;
-        if (reservation.RDate !== today) return false;
-
-        const start = timeToMinutes(reservation.RTime);
-        const duration = reservation.durationMinutes || RESERVATION_DURATION_MINUTES;
-        const end = start + duration;
-
-        return currentMinutes >= start && currentMinutes < end;
-      });
-
-      if (!activeReservation) return table;
-
-      return {
-        ...table,
-        reservedForWalkIn: true,
-        reservedTime: activeReservation.RTime,
-      };
-    });
-  }, [db.tables, db.reservations]);
 
   const showHeader =
     employee &&
@@ -928,13 +1302,16 @@ function confirmOrder() {
           onGeneral={handleGeneralCustomer}
           onMember={() => goToMemberLogin("order")}
           onReserve={() => goToMemberLogin("reserve")}
-          onReservationHistory={() => goToMemberLogin("history")}
+          onReservationHistory={goToReservationHistory}
+          onHistory={goToReservationHistory}
+          onReservationHistoryClick={goToReservationHistory}
+          onClickHistory={goToReservationHistory}
         />
       )}
 
       {page === "service-table" && (
         <ServiceTable
-          tables={serviceTables}
+          tables={db.tables}
           onTableClick={handleSelectServiceTable}
         />
       )}
@@ -978,6 +1355,8 @@ function confirmOrder() {
           peopleCount={peopleCount}
           setPeopleCount={setPeopleCount}
           onCreateReservation={handleCreateReservation}
+          onHistory={goToReservationHistory}
+          onReservationHistory={goToReservationHistory}
         />
       )}
 
@@ -1015,7 +1394,7 @@ function confirmOrder() {
           selectedMenu={selectedMenu}
           menuOptions={menuOptions}
           setMenuOptions={setMenuOptions}
-          onAddToCart={() => addToCart(selectedMenu, menuOptions)}
+          onAddToCart={addToCart}
           onBack={() => setPage("order-food")}
         />
       )}
@@ -1064,16 +1443,49 @@ function confirmOrder() {
         <PaymentSuccess
           customerType={customerType}
           reviewCode={reviewCode}
+          reviewUrl={reviewCode ? `${window.location.origin}/review/${encodeURIComponent(reviewCode)}` : ""}
+          qrValue={reviewCode ? `${window.location.origin}/review/${encodeURIComponent(reviewCode)}` : ""}
           onClearTable={clearTable}
           onGoReview={() => setPage("review")}
         />
       )}
 
       {page === "review" && (
-        <ReviewPage
-          reviewData={reviewSessionData}
-          onSubmit={submitReview}
-        />
+        <div className="review-mobile-fix">
+          <style>
+            {`
+              .review-mobile-fix img {
+                max-width: 140px !important;
+                max-height: 120px !important;
+                width: 140px !important;
+                height: 120px !important;
+                object-fit: cover !important;
+                border-radius: 12px !important;
+              }
+
+              .review-mobile-fix {
+                overflow-x: hidden !important;
+              }
+
+              .review-mobile-fix * {
+                box-sizing: border-box !important;
+              }
+
+              @media (max-width: 768px) {
+                .review-mobile-fix img {
+                  max-width: 96px !important;
+                  max-height: 80px !important;
+                  width: 96px !important;
+                  height: 80px !important;
+                }
+              }
+            `}
+          </style>
+          <ReviewPage
+            reviewData={reviewSessionData}
+            onSubmit={submitReview}
+          />
+        </div>
       )}
 
       {page === "thank-you" && (

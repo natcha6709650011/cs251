@@ -1,5 +1,3 @@
-USE cs251;
-GO
 
 CREATE TABLE Employee
 (
@@ -8,13 +6,12 @@ CREATE TABLE Employee
     ESurName VARCHAR(25),
     ETel VARCHAR(10),
     ERole VARCHAR(20),
-    CONSTRAINT check_ERole CHECK(
-        ERole IN(
-            'พนักงานเสิรฟ',
-            'แคชเชียร',
-            'ผู้จัดการร้าน',
-            'พ่อครัว'
-        )
+    EStatus VARCHAR(20),
+    CONSTRAINT check_ERole CHECK (
+        ERole IN ('staff', 'cashier', 'manager', 'chef')
+    ),
+    CONSTRAINT check_EStatus CHECK (
+        EStatus IN ('active', 'inactive', 'resigned')
     )
 );
 GO
@@ -24,13 +21,7 @@ CREATE TABLE Category
     Category_Id VARCHAR(2) PRIMARY KEY,
     Category_Name VARCHAR(25),
     CONSTRAINT check_category_name CHECK (
-        Category_Name IN (
-            'เมนูแนะนำ',
-            'อาหาร',
-            'ของทานเล่น',
-            'ของหวาน',
-            'เครื่องดื่ม'
-        )
+        Category_Name IN ('recommended', 'food', 'snack', 'dessert', 'drink')
     )
 );
 GO
@@ -38,14 +29,11 @@ GO
 CREATE TABLE Menu
 (
     MenuId VARCHAR(3) PRIMARY KEY,
-    MenuName VARCHAR(25),
+    MenuName VARCHAR(50),
     Price INT,
-    MenuStatus VARCHAR(15),
-    CONSTRAINT check_MenuStatus CHECK(
-        MenuStatus IN(
-            'พร้อมจำหน่าย',
-            'หมด'
-        )
+    MenuStatus VARCHAR(20),
+    CONSTRAINT check_MenuStatus CHECK (
+        MenuStatus IN ('available', 'not available')
     )
 );
 GO
@@ -62,7 +50,7 @@ CREATE TABLE Member
     MFirstName VARCHAR(25),
     MSurName VARCHAR(25),
     MTel VARCHAR(10),
-    MEmail VARCHAR(25),
+    MEmail VARCHAR(50),
     FOREIGN KEY (CId) REFERENCES Customer(CId)
 );
 GO
@@ -78,19 +66,12 @@ CREATE TABLE Tables
 (
     TNumber VARCHAR(2) PRIMARY KEY,
     T_Type VARCHAR(10),
-    CONSTRAINT check_T_Type CHECK(
-        T_Type IN(
-            'เล็ก',
-            'กลาง',
-            'ใหญ่'
-        )
+    TStatus VARCHAR(20),
+    CONSTRAINT check_T_Type CHECK (
+        T_Type IN ('small', 'medium', 'large')
     ),
-    TStatus VARCHAR(10),
-    CONSTRAINT check_TStatus CHECK(
-        TStatus IN(
-            'ว่าง',
-            'ไม่ว่าง'
-        )
+    CONSTRAINT check_TStatus CHECK (
+        TStatus IN ('available', 'not available')
     )
 );
 GO
@@ -102,8 +83,8 @@ CREATE TABLE Reservation
     RTime TIME,
     CId VARCHAR(10),
     TNumber VARCHAR(2),
-    FOREIGN KEY (TNumber) REFERENCES Tables(TNumber),
-    FOREIGN KEY (CId) REFERENCES Customer(CId)
+    FOREIGN KEY (CId) REFERENCES Customer(CId),
+    FOREIGN KEY (TNumber) REFERENCES Tables(TNumber)
 );
 GO
 
@@ -124,37 +105,44 @@ CREATE TABLE Orders
     CId VARCHAR(10),
     EId VARCHAR(10),
     TNumber VARCHAR(2),
+    OStatus VARCHAR(20),
     FOREIGN KEY (CId) REFERENCES Customer(CId),
     FOREIGN KEY (EId) REFERENCES Employee(EId),
-    FOREIGN KEY (TNumber) REFERENCES Tables(TNumber)
+    FOREIGN KEY (TNumber) REFERENCES Tables(TNumber),
+    CONSTRAINT check_OStatus CHECK (
+        OStatus IN ('pending', 'paid', 'cancelled')
+    )
 );
 GO
 
 CREATE TABLE OrderDetails
 (
-    OD_Id VARCHAR(2) PRIMARY KEY,
+    OD_Id VARCHAR(5) PRIMARY KEY,
     Quantity INT,
     UnitPrice INT,
+    SubTotal INT,
+    SizeOption VARCHAR(20),
+    Toppings VARCHAR(100),
+    DrinkType VARCHAR(20),
+    Sweetness VARCHAR(20),
+    Note VARCHAR(100),
     OId VARCHAR(4),
     MenuId VARCHAR(3),
-    FOREIGN KEY (MenuId) REFERENCES Menu(MenuId),
-    FOREIGN KEY (OId) REFERENCES Orders(OId)
+    FOREIGN KEY (OId) REFERENCES Orders(OId),
+    FOREIGN KEY (MenuId) REFERENCES Menu(MenuId)
 );
 GO
 
 CREATE TABLE Payment
 (
     PId VARCHAR(5) PRIMARY KEY,
-    P_Method VARCHAR(10),
+    P_Method VARCHAR(20),
     P_DateTime DATETIME2,
+    P_total INT,
     OId VARCHAR(4),
     FOREIGN KEY (OId) REFERENCES Orders(OId),
-    CONSTRAINT check_P_Method CHECK(
-        P_Method IN(
-            'Cash',
-            'Credit Card',
-            'Qr Code'
-        )
+    CONSTRAINT check_P_Method CHECK (
+        P_Method IN ('Cash', 'Credit Card', 'Qr Code', 'QR Code')
     )
 );
 GO
@@ -182,10 +170,10 @@ CREATE TABLE OrderReview
 (
     ROId VARCHAR(4) PRIMARY KEY,
     Rating INT NOT NULL,
-    CONSTRAINT check_Rating CHECK (Rating BETWEEN 1 AND 5),
     Comment VARCHAR(100),
     ReviewDateTime DATETIME2,
     OId VARCHAR(4),
-    FOREIGN KEY (OId) REFERENCES Orders(OId)
+    FOREIGN KEY (OId) REFERENCES Orders(OId),
+    CONSTRAINT check_Rating CHECK (Rating BETWEEN 1 AND 5)
 );
 GO
