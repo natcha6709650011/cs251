@@ -8,8 +8,8 @@ CREATE TABLE Employee
     EStatus VARCHAR(20),
     CONSTRAINT check_ERole CHECK(
         ERole IN(
-            'พนักงานเสิรฟ',
-            'แคชเชียร',
+            'พนักงานเสิร์ฟ',
+            'แคชเชียร์',
             'ผู้จัดการร้าน',
             'พ่อครัว'
         )
