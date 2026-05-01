@@ -1,4 +1,5 @@
 import { apiRequest } from "./api";
+import { menus as menuData } from "./data/menuData";
 import { useEffect, useMemo, useState } from "react";
 
 import { loadDB, saveDB } from "./utils/storage";
@@ -182,9 +183,24 @@ function App() {
             tables: Array.isArray(tableRes.data)
               ? tableRes.data.map(dbTableToUiTable)
               : prev.tables,
-            menus: Array.isArray(menuRes.data) && menuRes.data.length > 0
-              ? menuRes.data
-              : prev.menus,
+            menus:
+          Array.isArray(menuRes.data) && menuRes.data.length > 0
+            ? menuRes.data.map((dbMenu) => {
+                const localMenu = menuData.find(
+                  (m) =>
+                    String(m.menuId || m.id).padStart(3, "0") ===
+                    String(dbMenu.menuId || dbMenu.id).padStart(3, "0")
+                );
+
+                return {
+                  ...dbMenu,
+                  name: localMenu?.name || dbMenu.name,
+                  image: localMenu?.image || "",
+                  description: localMenu?.description || dbMenu.description || "",
+                  options: localMenu?.options || dbMenu.options || [],
+                };
+              })
+            : prev.menus,
           }));
         }
       } catch (error) {
