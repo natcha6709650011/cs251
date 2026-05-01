@@ -60,9 +60,9 @@ export const menus = [
   // เครื่องดื่ม
   { id: 46, name: "น้ำเปล่า", image: "https://img.th.my-best.com/product_images/d68638208391099f2dc353bffc6ab717.jpeg?ixlib=rails-4.3.1&q=70&lossless=0&w=800&h=800&fit=clip&s=7845671ef59dc1c5f371e538e82e78c3", category: "drink", optionType: "simple", price: 15 },
   { id: 47, name: "น้ำส้มคั้นสด", image: "https://www.น้ําส้มคั้นวโรรส.com/sites/storage/files/styles/550x550/typmedia/olc/80011729/634e3cb77e4a4.jpg", category: "drink", optionType: "simple", price: 45 },
-  { id: 48, name: "น้ำมะนาว", image: "", category: "drink", optionType: "simple", price: 45 },
-  { id: 49, name: "เป๊ปซี่", image: "", category: "drink", optionType: "simple", price: 25 },
-  { id: 50, name: "ชามะนาว", image: "", category: "drink", optionType: "drink", price: 45 },
+  { id: 48, name: "น้ำมะนาว", image: "https://cdn.prod.website-files.com/65ed250caef8ed66454c2464/66dfbb639e7a6b90eaa5abe2_Italian%20Soda-%E0%B8%99%E0%B9%89%E0%B8%B3%E0%B8%9C%E0%B8%B6%E0%B9%89%E0%B8%87%E0%B8%A1%E0%B8%B0%E0%B8%99%E0%B8%B2%E0%B8%A7%E0%B9%82%E0%B8%8B%E0%B8%94%E0%B8%B2.jpg", category: "drink", optionType: "simple", price: 45 },
+  { id: 49, name: "เป๊ปซี่", image: "https://mnrhcoopshop.com/uploadpicpdc/20240404670554.jpg", category: "drink", optionType: "simple", price: 25 },
+  { id: 50, name: "ชามะนาว", image: "https://s359.kapook.com/pagebuilder/aea20974-a1b8-44d5-be43-c018b6448758.jpg", category: "drink", optionType: "drink", price: 45 },
 
   { id: 51, name: "ชาไทย", image: "https://inwfile.com/s-gf/2vtp7m.jpg", category: "drink", optionType: "drink", price: 45 },
   { id: 52, name: "เอสเพรสโซ่", image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSjI84CE2MsR3OU75oZV49DDzh4440aS__9Tg&s", category: "drink", optionType: "drink", price: 55 },
