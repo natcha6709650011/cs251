@@ -78,6 +78,45 @@ function MenuDetail({
                   </div>
                 </>
               )}
+              {/* --- ส่วนของของทอด (Snack) --- */}
+{selectedMenu.optionType === "snack" && (
+  <>
+    <div className="p2-option-section">
+      <h4 className="p2-option-header">ปริมาณ</h4>
+      <div className="p2-radio-group">
+        {["ธรรมดา", "พิเศษ"].map((size) => (
+          <label className="p2-option-label" key={size}>
+            <input
+              type="radio"
+              name="size"
+              checked={menuOptions.size === size}
+              onChange={() => updateOption("size", size)}
+            />
+            <span className="p2-label-text">
+              {size} {size === "พิเศษ" ? "(+10 บาท)" : ""}
+            </span>
+          </label>
+        ))}
+      </div>
+    </div>
+
+    <div className="p2-option-section">
+      <h4 className="p2-option-header">ท็อปปิ้ง</h4>
+      <div className="p2-checkbox-group">
+        {["ชีสดิป (+10.-)"].map((topping) => (
+          <label className="p2-option-label" key={topping}>
+            <input
+              type="checkbox"
+              checked={(menuOptions.toppings || []).includes(topping)}
+              onChange={() => handleToppingChange(topping)}
+            />
+            <span className="p2-label-text">{topping}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  </>
+)}
 
               {/* --- ส่วนของเครื่องดื่ม (Drink) --- */}
               {selectedMenu.optionType === "drink" && (
