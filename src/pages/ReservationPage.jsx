@@ -135,13 +135,29 @@ function ReservationPage({
 
           <div className="p1-reservation-field">
             <label htmlFor="people-count">จำนวนผู้เข้าใช้</label>
-            <input
-              id="people-count"
-              type="number"
-              min="1"
-              value={peopleCount || 1}
-              onChange={(event) => setPeopleCount(Number(event.target.value))}
-            />
+ <input
+  type="number"
+  min="1"
+  value={peopleCount ?? ""}
+  placeholder="กรอกจำนวนคน"
+  onFocus={() => {
+    if (peopleCount === 1 || peopleCount === "1") {
+      setPeopleCount("");
+    }
+  }}
+  onChange={(e) => {
+    setPeopleCount(e.target.value);
+  }}
+  style={{
+    width: "100%",
+    height: "60px",
+    borderRadius: "12px",
+    border: "1px solid #999",
+    padding: "0 16px",
+    fontSize: "22px",
+    boxSizing: "border-box",
+  }}
+/>
           </div>
         </div>
 

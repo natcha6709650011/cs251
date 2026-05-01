@@ -1,5 +1,5 @@
 // src/api.js
-const API_BASE_URL = "http://localhost:4000";
+const API_BASE_URL = "http://192.168.1.105:4000"; // เปลี่ยนเป็น URL ของ Backend API ของคุณ
 
 async function request(path, options = {}) {
   const res = await fetch(`${API_BASE_URL}${path}`, {
