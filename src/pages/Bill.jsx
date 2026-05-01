@@ -112,14 +112,6 @@ function Bill({
             </div>
           </div>
 
-          <button
-            type="button"
-            className="p3-bill-confirm-btn"
-            onClick={() => onSelectPayment("เงินสด")}
-            disabled={allItems.length === 0}
-          >
-            ยืนยันการชำระเงิน
-          </button>
         </div>
 
         {/* 4. ใช้ aside สำหรับส่วนประกอบรอง */}

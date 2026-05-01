@@ -33,6 +33,22 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import ReviewPage from "./pages/ReviewPage";
 import ThankYou from "./pages/ThankYou";
 
+const RESERVATION_DURATION_MINUTES = 90;
+
+function timeToMinutes(time) {
+  if (!time) return 0;
+  const [hour, minute] = String(time).split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+function isTimeOverlap(startA, endA, startB, endB) {
+  return startA < endB && startB < endA;
+}
+
+function isActiveReservation(reservation) {
+  return reservation.status === "reserved" || reservation.status === "checked_in";
+}
+
 function App() {
   const [db, setDb] = useState(() => loadDB());
 
@@ -141,7 +157,7 @@ function App() {
     setSelectedMenu(null);
     setMenuOptions({
       size: "ธรรมดา",
-      topping: "",
+      toppings: [],
       drinkType: "",
       sweetness: "",
       note: "",
@@ -302,32 +318,37 @@ function App() {
   }
 
   function handleSelectServiceTable(table) {
-  setSelectedTable(table);
+    if (table?.reservedForWalkIn) {
+      alert(`โต๊ะนี้มีการจองเวลา ${table.reservedTime || "นี้"} กรุณาเลือกโต๊ะอื่น`);
+      return;
+    }
 
-  updateDB((prev) => ({
-    ...prev,
-    tables: prev.tables.map((item) => {
-      if (item.TNumber !== table.TNumber) return item;
+    setSelectedTable(table);
 
-      const oldEmployeeIds = item.employeeIds || [];
-      const currentEmployeeId = employee?.EId;
+    updateDB((prev) => ({
+      ...prev,
+      tables: prev.tables.map((item) => {
+        if (item.TNumber !== table.TNumber) return item;
 
-      const newEmployeeIds =
-        currentEmployeeId && !oldEmployeeIds.includes(currentEmployeeId)
-          ? [...oldEmployeeIds, currentEmployeeId]
-          : oldEmployeeIds;
+        const oldEmployeeIds = item.employeeIds || [];
+        const currentEmployeeId = employee?.EId;
 
-      return {
-        ...item,
-        Status: "ไม่ว่าง",
-        employeeId: currentEmployeeId || item.employeeId || "",
-        employeeIds: newEmployeeIds,
-      };
-    }),
-  }));
+        const newEmployeeIds =
+          currentEmployeeId && !oldEmployeeIds.includes(currentEmployeeId)
+            ? [...oldEmployeeIds, currentEmployeeId]
+            : oldEmployeeIds;
 
-  setPage("order-food");
-}
+        return {
+          ...item,
+          Status: "ไม่ว่าง",
+          employeeId: currentEmployeeId || item.employeeId || "",
+          employeeIds: newEmployeeIds,
+        };
+      }),
+    }));
+
+    setPage("order-food");
+  }
 
   function handleCreateReservation({ table, date, time, count }) {
     if (!customer) {
@@ -340,17 +361,23 @@ function App() {
       return;
     }
 
-    const alreadyReserved = db.reservations.some(
-      (reservation) =>
-        reservation.tableNumber === table.TNumber &&
-        reservation.RDate === date &&
-        reservation.RTime === time &&
-        (reservation.status === "reserved" ||
-          reservation.status === "checked_in")
-    );
+    const newStart = timeToMinutes(time);
+    const newEnd = newStart + RESERVATION_DURATION_MINUTES;
+
+    const alreadyReserved = db.reservations.some((reservation) => {
+      if (!isActiveReservation(reservation)) return false;
+      if (reservation.tableNumber !== table.TNumber) return false;
+      if (reservation.RDate !== date) return false;
+
+      const oldStart = timeToMinutes(reservation.RTime);
+      const oldDuration = reservation.durationMinutes || RESERVATION_DURATION_MINUTES;
+      const oldEnd = oldStart + oldDuration;
+
+      return isTimeOverlap(newStart, newEnd, oldStart, oldEnd);
+    });
 
     if (alreadyReserved) {
-      alert("โต๊ะนี้ถูกจองแล้วในวันและเวลานี้ กรุณาเลือกโต๊ะหรือเวลาอื่น");
+      alert("โต๊ะนี้ถูกจองแล้วในช่วงเวลาที่เลือก กรุณาเลือกโต๊ะหรือเวลาอื่น");
       return;
     }
 
@@ -360,6 +387,7 @@ function App() {
       tableNumber: table.TNumber,
       RDate: date,
       RTime: time,
+      durationMinutes: RESERVATION_DURATION_MINUTES,
       PeopleCount: count,
       status: "reserved",
       createdAt: new Date().toISOString(),
@@ -392,15 +420,23 @@ function App() {
             }
           : item
       ),
-      tables: prev.tables.map((item) =>
-        item.TNumber === reservation.tableNumber
-          ? {
-              ...item,
-              Status: "ไม่ว่าง",
-              employeeId: employee?.EId || "",
-            }
-          : item
-      ),
+      tables: prev.tables.map((item) => {
+        if (item.TNumber !== reservation.tableNumber) return item;
+
+        const oldEmployeeIds = item.employeeIds || [];
+        const currentEmployeeId = employee?.EId;
+        const newEmployeeIds =
+          currentEmployeeId && !oldEmployeeIds.includes(currentEmployeeId)
+            ? [...oldEmployeeIds, currentEmployeeId]
+            : oldEmployeeIds;
+
+        return {
+          ...item,
+          Status: "ไม่ว่าง",
+          employeeId: currentEmployeeId || item.employeeId || "",
+          employeeIds: newEmployeeIds,
+        };
+      }),
     }));
 
     setSelectedReservation({
@@ -440,7 +476,7 @@ function App() {
     setSelectedMenu(menu);
     setMenuOptions({
       size: "ธรรมดา",
-      topping: "",
+      toppings: [],
       drinkType: "",
       sweetness: "",
       note: "",
@@ -603,6 +639,8 @@ function confirmOrder() {
       return;
     }
 
+    const paidAt = new Date().toISOString();
+
     const payment = {
       paymentId: generateId("P"),
       tableNumber: selectedTable?.TNumber || "",
@@ -611,7 +649,7 @@ function confirmOrder() {
       method: paymentMethod,
       total: billTotal,
       status: "paid",
-      createdAt: new Date().toISOString(),
+      createdAt: paidAt,
       orderIds: currentOrders.map((order) => order.orderId),
     };
 
@@ -623,8 +661,24 @@ function confirmOrder() {
           ? {
               ...order,
               status: "paid",
+              paidAt,
+              paymentId: payment.paymentId,
             }
           : order
+      ),
+      // เคลียร์โต๊ะอัตโนมัติทันทีหลังยืนยันการชำระเงิน
+      // ใช้ได้ทุกวิธีชำระเงิน: เงินสด / QR Code / บัตรเครดิต-เดบิต
+      tables: prev.tables.map((table) =>
+        table.TNumber === selectedTable?.TNumber
+          ? {
+              ...table,
+              Status: "ว่าง",
+              employeeId: "",
+              employeeIds: [],
+              customerId: "",
+              customerName: "",
+            }
+          : table
       ),
     }));
 
@@ -635,27 +689,45 @@ function confirmOrder() {
       setReviewCode("");
     }
 
+    // อัปเดต selectedTable ใน state ให้เป็นโต๊ะว่างด้วย เพื่อไม่ให้ Header แสดงสถานะเก่า
+    setSelectedTable((prev) =>
+      prev
+        ? {
+            ...prev,
+            Status: "ว่าง",
+            employeeId: "",
+            employeeIds: [],
+            customerId: "",
+            customerName: "",
+          }
+        : prev
+    );
+
+    setCart([]);
+    setPaymentMethod("");
     setPage("payment-success");
   }
 
   function clearTable() {
-    if (!selectedTable) {
-      setPage("customer-type");
-      return;
+    // ปุ่มกลับหน้าเลือกประเภทลูกค้าหลังชำระเงิน
+    // โต๊ะถูกเคลียร์ตั้งแต่ confirmPayment แล้ว แต่เก็บไว้เพื่อกันกรณีเข้ามาจาก flow อื่น
+    if (selectedTable) {
+      updateDB((prev) => ({
+        ...prev,
+        tables: prev.tables.map((table) =>
+          table.TNumber === selectedTable.TNumber
+            ? {
+                ...table,
+                Status: "ว่าง",
+                employeeId: "",
+                employeeIds: [],
+                customerId: "",
+                customerName: "",
+              }
+            : table
+        ),
+      }));
     }
-
-    updateDB((prev) => ({
-      ...prev,
-      tables: prev.tables.map((table) =>
-        table.TNumber === selectedTable.TNumber
-          ? {
-              ...table,
-              Status: "ว่าง",
-              employeeId: "",
-            }
-          : table
-      ),
-    }));
 
     resetCustomerFlow();
     setPage("customer-type");
@@ -732,6 +804,34 @@ function confirmOrder() {
     setPage("thank-you");
   }
 
+  const serviceTables = useMemo(() => {
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    return db.tables.map((table) => {
+      const activeReservation = db.reservations.find((reservation) => {
+        if (!isActiveReservation(reservation)) return false;
+        if (reservation.tableNumber !== table.TNumber) return false;
+        if (reservation.RDate !== today) return false;
+
+        const start = timeToMinutes(reservation.RTime);
+        const duration = reservation.durationMinutes || RESERVATION_DURATION_MINUTES;
+        const end = start + duration;
+
+        return currentMinutes >= start && currentMinutes < end;
+      });
+
+      if (!activeReservation) return table;
+
+      return {
+        ...table,
+        reservedForWalkIn: true,
+        reservedTime: activeReservation.RTime,
+      };
+    });
+  }, [db.tables, db.reservations]);
+
   const showHeader =
     employee &&
     ![
@@ -801,7 +901,7 @@ function confirmOrder() {
 
       {page === "service-table" && (
         <ServiceTable
-          tables={db.tables}
+          tables={serviceTables}
           onTableClick={handleSelectServiceTable}
         />
       )}
