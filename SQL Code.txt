@@ -1,0 +1,226 @@
+SQL Code
+1.  	Function : สั่งอาหาร
+
+INSERT INTO Orders (OId, ODateTime, Cid, Eid, TNumber)
+VALUES ('<รหัสรายการสั่งซื้อ>','<วันและเวลาที่ทำการสั่งซื้อ>', '<รหัสลูกค้า>', '<รหัสพนักงาน>', '<รหัสโต๊ะ>');
+
+เป็นฟังก์ชั่นสำหรับการบันทึกข้อมูลเมื่อลูกค้าทำการสั่งอาหาร โดยแบ่งเป็น 2 ส่วน คือส่วนแรกเป็นการสร้างใบสั่งซื้อโดยเพิ่มข้อมูล OId, ODateTime, Cid, Eid, TNumber ลงในตาราง Orders
+ 
+SELECT MenuStatus 
+FROM Menu
+WHERE MenuId = '<รหัสรายการอาหาร>'
+
+INSERT INTO OrderDetails (OD_Id, Quantity, UnitPrice, OId, MenuID) 
+VALUES ('<รหัสรายละเอียดคำสั่งซื้อ>', '<ปริมาณอาหาร>', (SELECT Price FROM Menu WHERE MenuId = '<รหัสรายการอาหาร>'), '<รหัสรายการสั่งซื้อ>', '<รหัสรายการอาหาร>');
+ 
+และส่วนที่สอง เป็นการบันทึกเเต่ละรายการคำสั่งซื้อโดยถ้าเมนูนั้นพร้อมจำหน่ายจะเพิ่มข้อมูล OD_Id , Quantity, UnitPrice ที่อ้างอิงจากข้อมูลราคาจากตาราง Menu , OId, MenuId ลงในตาราง OrderDetails
+2. 	Function : การแก้ไขและยกเลิกรายการอาหาร
+
+UPDATE OrderDetails
+SET MenuID = '<รหัสรายการอาหาร>',
+	Quantity =  <ปริมาณอาหาร>
+WHERE OD_Id = '<รหัสรายละเอียดคำสั่งซื้อ>';
+
+เป็นฟังก์ชั่นสำหรับเปลี่ยนแปลงรายการอาหาร และ ปริมาณ
+
+DELETE FROM OrderDetails
+WHERE OD_Id = '<รหัสรายละเอียดคำสั่งซื้อ>';
+
+เป็นฟังก์ชั่นสำหรับการลบรายการอาหาร เมื่อถูกยกเลิก
+
+
+
+
+
+3.  	Function : การจองโต๊ะในร้าน
+
+SELECT COUNT(*) 
+FROM Reservation
+WHERE TNumber = '<รหัสโต๊ะ>' AND RDate = '<วันที่ทำการจอง>' AND RTime = '<เวลาทำการจอง>';
+ 
+INSERT INTO Reservation (RID, RDateTime, CId, TNumber) 
+VALUES ('<รหัสการจอง>', '<วันและเวลาที่ทำการจอง>', '<รหัสลูกค้า>', '<รหัสโต๊ะ>');
+ 
+เป็นฟังก์ชั่นสำหรับการจองโต๊ะ โดยจะเช็คตรวจสอบสถานะของโต๊ะในช่วง เวลาที่ต้องการ หากโต๊ะไม่ถูกจองในวันเเละเวลาดังกล่าว จะบันทึกข้อมูลการจองลงตารางReservation
+ 
+
+
+
+4.  	Function : การชำระเงิน
+
+SELECT od.MenuID, od.Quantity, od.UnitPrice,
+(od.Quantity * od.UnitPrice) AS Subtotal,  
+SUM(od.Quantity * od.UnitPrice) OVER() AS P_total 
+FROM OrderDetails od
+WHERE od.OId = '<รหัสออเดอร์>';
+ 
+เป็นฟังก์ชั่นสำหรับการคำนวณราคารวมในแต่ละรายการอาหาร และการคำนวณยอดรวมทั้งหมดที่ต้องชำระเงิน
+ 
+INSERT INTO Payment (PId, P_Method, P_DateTime, OId, P_total )
+VALUES ('<รหัสการชำระเงิน>','<รูปแบบการชำระเงิน>', NOW( ), '<รหัสรายการสั่งซื้อ>', (SELECT SUM(od.Quantity * od.UnitPrice) FROM OrderDetails  WHERE OId = '<รหัสออเดอร์>') );
+ 
+บันทึกรหัสการชำระเงิน รูปแบบการชำระเงิน วันและเวลาที่ทำการชำระเงิน รหัสรายการสั่งซื้อและยอดรวมลงในตารางPayment
+
+UPDATE Tables
+SET Status = 'ว่าง' 
+WHERE TNumber = (SELECT TNumber FROM Orders WHERE OId = '<รหัสออเดอร์>');
+ 
+อัปเดตสถานะของโต๊ะเป็นว่าง
+ 
+5.  	Function : การแสดงความคิดเห็นของลูกค้าต่อเมนูอาหารและบริการ
+
+INSERT INTO OrderReview (ROId, Rating,Comment, ReviewDateTime, OId)
+VALUES ('<รหัสรีวิวออเดอร์>','<คะแนนความพึงพอใจ>', '<ความคิดเห็นหรือ ข้อเสนอแนะของลูกค้า>',NOW(),'<รหัสรายการสั่งซื้อ>');
+
+เป็นฟังก์ชั่นสำหรับการรีวิวรายการอาหาร โดยเก็บ คะแนนและความคิดเห็นเกี่ยวกับรายการอาหาร วันที่เเละเวลาที่รีวิว  เเละรหัสออเดอร์ ลงในตาราง OrderReview
+
+INSERT INTO EmployeeReview (REId, Rating,Comment, ReviewDateTime, OId)
+VALUES ('<รหัสรีวิวพนักงาน>','<คะแนนความพึงพอใจ>', '<ความคิดเห็นหรือ ข้อเสนอแนะของลูกค้า>', NOW( ));
+
+
+INSERT INTO Review_employee (REId , EId)
+VALUES ('<รหัสรีวิวพนักงาน>','<รหัสพนักงาน>');
+
+เป็นฟังก์ชั่นสำหรับการรีวิวพนักงานโดยเก็บ รหัสรีวิวพนักงาน คะแนนความพึงพอใจ ความคิดเห็นหรือข้อเสนอแนะเกี่ยวกับพนักงาน วันที่เเละเวลาที่รีวิว เเละเก็บรหัสรีวิวพนักงานเเละรหัสพนักงาน ลงในตาราง Review_employee
+
+6.  	Function : การจัดการเมนูอาหารในหน้าร้าน
+
+INSERT INTO Menu (MenuId, Menuname, Price,MenuStatus)
+VALUES ('<รหัสรายการอาหาร>', '<ชื่อรายการอาหาร>', <ราคารายการอาหาร>,'<สถานะอาหาร>');
+
+INSERT INTO Categorizers (Category_Id, MenuId)
+VALUES ('<รหัสหมวดหมู่>', '<รหัสรายการอาหาร>');
+
+เป็นฟังก์ชั่นเพิ่มรายการเมนูอาหาร โดยเก็บรหัสรายการอาหาร, ชื่อรายการอาหาร, ราคารายการอาหาร และสถานะอาหาร ลงในตาราง Menu 
+เก็บรหัสหมวดหมู่ เเละ รหัสรายการอาหาร ลงในตาราง Categorizers
+
+UPDATE Menu
+SET MenuName = '<ชื่อรายการอาหาร>',
+Price = <ราคารายการอาหาร>
+MenuStatus = '<สถานะอาหาร>',
+WHERE MenuId = '<รหัสรายการอาหาร>';
+
+เป็นฟังก์ชั่นแก้ไขรายการเมนูอาหาร ได้แก่ ชื่อรายการอาหาร ราคารายการอาหาร เเละสถานะอาหารลงในตาราง Menu
+
+UPDATE Menu
+SET MenuStatus = 'หมด',
+WHERE MenuId = '<รหัสรายการอาหาร>';
+
+เปลี่ยนสถานะอาหารเป็น หมด กรณีที่รายการอาหารนั้นหมด 
+
+UPDATE Menu
+SET MenuStatus = 'พร้อมจำหน่าย',
+WHERE MenuId = '<รหัสรายการอาหาร>';
+
+เปลี่ยนสถานะอาหารเป็น พร้อมจำหน่าย กรณีที่รายการอาหารนั้นพร้อมจำหน่าย
+
+DELETE FROM Menu
+WHERE MenuId = '<รหัสรายการอาหาร>';
+
+เป็นฟังก์ชั่นลบเมนูรายการอาหารในตาราง Menu
+
+7.  	Function : การจัดการโต๊ะในร้าน
+
+UPDATE Tables
+SET Status = ' ไม่ว่าง' 
+WHERE TNumber = '<รหัสโต๊ะ>';
+ 
+และอัปเดตสถานะโต๊ะ เป็นไม่ว่างเมื่อลูกค้าเข้าใช้บริการในโต๊ะนั้น
+
+UPDATE Tables
+SET Status = ' ว่าง' 
+WHERE TNumber = '<รหัสโต๊ะ>';
+ 
+และอัปเดตสถานะโต๊ะ เป็นว่างเมื่อลูกค้าออกจากร้านเเละทำความสะอาดโต๊ะเรียบร้อยเเล้ว
+
+ 8.  	Function : การจัดการข้อมูลพนักงาน
+
+INSERT INTO Employee (EId, EFirstName, ESurName, ETel, ERole,EStatus)
+VALUES ('<รหัสพนักงาน>','<ชื่อจริงของพนักงาน>', '<นามสกุลของพนักงาน>', '<เบอร์โทรของพนักงาน>', '<บทบาทของพนักงาน>','กำลังทำงาน');
+
+เป็นฟังก์ชั่นการเพิ่มข้อมูลพนักงาน ได้เเก่ รหัสพนักงาน ชื่อ นามสกุล เบอร์โทรศัพท์ บทบาทหน้าที่และสถานะของพนักงานเป็นกำลังทำงาน ลงในตารางEmployee 
+
+UPDATE Employee
+SET EFirstName = ' <ชื่อจริงของพนักงาน>' ,
+      ESurName = '<นามสกุลของพนักงาน>' ,
+  		      ETel = '<เบอร์โทรของพนักงาน>',
+      ERole = '<บทบาทของพนักงาน>',
+WHERE EId = '<รหัสพนักงาน>';
+
+เป็นฟังก์ชั่นการเเก้ไขข้อมูลพนักงาน ได้เเก่ ชื่อ นามสกุล เบอร์โทรศัพท์ และบทบาทหน้าที่ ลงในตารางEmployee 
+
+UPDATE Employee
+SET EStatus = 'ลาออก'
+WHERE EId = '<รหัสพนักงาน>';
+
+กรณีที่พนักงานลาออก
+
+DELETE 
+FROM Employee 
+WHERE EId = '<รหัสพนักงาน>';
+
+เป็นฟังก์ชั่นการลบข้อมูลพนักงาน 
+  
+9.  	Function : การจัดการข้อมูลลูกค้า
+
+INSERT INTO Customer (CId)
+VALUES ('<รหัสลูกค้า>');
+
+เป็นฟังก์ชั่นเพิ่มข้อมูลลูกค้าโดยการเพิ่มรหัสลูกค้า ลงในตาราง Customer
+
+INSERT INTO General (CId)
+VALUES ('<รหัสลูกค้า>');
+
+เป็นฟังก์ชั่นเพิ่มข้อมูลลูกค้าทั่วไปโดยการเพิ่มรหัสลูกค้า ลงในตารางGeneral
+
+INSERT INTO Member (CId, MFirstName, MSurName, MTel, MEmail)
+VALUES ('<รหัสลูกค้า>','<ชื่อจริงของสมาชิก>','<นามสกุลของสมาชิก>',
+'<เบอร์โทรของสมาชิก>','<อีเมลของสมาชิก>');
+
+เป็นฟังก์ชั่นเพิ่มข้อมูลสมาชิกโดยการเพิ่มข้อมูล ได้เเก่ รหัสลูกค้า ชื่อ นามสกุล เบอร์โทร เเละอีเมลลงในตาราง Member
+
+UPDATE Member
+SET MFirstName = '<ชื่อจริงของสมาชิก>',
+MSurName ='<นามสกุลของสมาชิก>',
+MTel = '<เบอร์โทรของสมาชิก>',
+MEmail = '<อีเมลของสมาชิก>'
+WHERE CId = '<รหัสลูกค้า>';
+
+เป็นฟังก์ชั่นแก้ไขหรืออัปเดตข้อมูลลูกค้า โดยการอัปเดตข้อมูล ชื่อ นามสกุล เบอร์โทร เเละอีเมลลงในตาราง Member
+ 
+10.   	Function : การลงทะเบียนสมาชิก
+
+SELECT * FROM Customer
+WHERE MTel = '<เบอร์โทรของสมาชิก>';
+
+INSERT INTO Member (CId, MFirstName, MSurName, MTel, MEmail)
+VALUES ('<รหัสลูกค้า>','<ชื่อจริงของสมาชิก>','<นามสกุลของสมาชิก>',
+'<เบอร์โทรของสมาชิก>','<อีเมลของสมาชิก>');
+
+เป็นฟังก์ชั่นตรวจสอบการเป็นสมาชิกของลูกค้า โดยตรวจสอบจากเบอร์โทรของลูกค้าหากไม่พบจะทำการลงทะเบียนสมาชิกและบันทึกข้อมูลลงในตารางMember 
+ 
+11. 	 Function : การค้นหาและแสดงรายการอาหาร
+
+SELECT m.MenuId, m.MenuName, m.Price, c.Category_Name
+FROM Menu m
+JOIN Categorizers cg ON m.MenuId = cg.MenuId
+JOIN Category c ON cg.Category_Id = c.Category_Id
+WHERE m.MenuName LIKE '%<คำค้านหา>%'
+OR c.Category_Name = '<คำค้นหา>';
+
+เป็นฟังก์ชันค้นหารายการอาหารจากชื่อรายการอาหารหรือชื่อหมวดหมู่จากฐานข้อมูล และแสดงรายการอาหาร
+
+ 
+12.   	Function : การคำนวณยอดรวมคำสั่งซื้อ
+SELECT m.MenuName, od.Quantity, od.UnitPrice, (od.Quantity * od.UnitPrice) AS SubTotal
+FROM OrderDetails od
+JOIN Menu m ON od.MenuID = m.MenuId
+WHERE od.OId = '<รหัสรายการสั่งซื้อ>';
+
+SELECT SUM(od.Quantity * od.UnitPrice) AS P_Total
+FROM OrderDetails od
+WHERE od.OId = '<รหัสรายการสั่งซื้อ>';
+
+เป็นฟังก์ชั่นการคำนวณยอดรวมคำสั่งซื้อ
+
+
