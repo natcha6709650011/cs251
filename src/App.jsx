@@ -933,17 +933,23 @@ async function confirmOrder() {
   }
 
   function createReviewSession(currentOrders) {
-    if (customerType !== "Member" || !customer) return "";
+    const isMemberCustomer =
+    customerType === "Member" ||
+    String(customer?.CId || "").startsWith("M") ||
+    Boolean(customer?.MFirstName || customer?.MTel);
+
+if (!customer || !isMemberCustomer) return "";
 
     const code = generateId("RV");
 
     const employeeIds = [
-      ...new Set(
-        currentOrders.flatMap((order) =>
-          order.employeeIds?.length ? order.employeeIds : [order.employeeId]
-        )
-      ),
-    ].filter(Boolean);
+  ...new Set([
+    ...currentOrders.flatMap((order) =>
+      order.employeeIds?.length ? order.employeeIds : [order.employeeId]
+    ),
+    employee?.EId,
+  ]),
+].filter(Boolean);
 
     const reviewOrders = currentOrders.map((order) => ({
       orderId: order.orderId,
@@ -1065,17 +1071,95 @@ async function confirmOrder() {
               Status: "ว่าง",
               TStatus: "available",
               employeeId: "",
+              employeeIds: [],
+              servingEmployees: [],
+              employees: [],
+              staffIds: [],
+              staff: [],
+              EId: "",
+              currentEmployeeId: "",
+              servedBy: "",
             }
           : table
       ),
     }));
 
-    if (customerType === "Member") {
-      const newReviewCode = createReviewSession(currentOrders);
-      setReviewCode(newReviewCode);
-    } else {
-      setReviewCode("");
-    }
+const isMemberCustomer =
+  customerType === "Member" ||
+  String(customer?.CId || "").startsWith("M") ||
+  Boolean(customer?.MFirstName || customer?.MTel);
+
+const memberCustomer =
+  customer ||
+  db.members.find((member) => String(member.CId || "").startsWith("M"));
+
+const shouldShowReviewQR =
+  String(memberCustomer?.CId || "").startsWith("M") ||
+  Boolean(memberCustomer?.MFirstName || memberCustomer?.MTel);
+
+if (shouldShowReviewQR) {
+  const oldCustomer = customer;
+
+  if (!customer && memberCustomer) {
+    setCustomer(memberCustomer);
+  }
+
+  const newReviewCode = createReviewSession(currentOrders);
+
+  if (newReviewCode) {
+    setReviewCode(newReviewCode);
+  } else {
+    const fallbackCode = generateId("RV");
+
+    const employeeIds = [
+      ...new Set([
+        ...currentOrders.flatMap((order) =>
+          order.employeeIds?.length ? order.employeeIds : [order.employeeId]
+        ),
+        employee?.EId,
+      ]),
+    ].filter(Boolean);
+
+    const reviewData = {
+      session: {
+        reviewCode: fallbackCode,
+        customerId: memberCustomer?.CId,
+        tableNumber: selectedTable?.TNumber || "",
+        orderIds: currentOrders.map((order) => order.orderId),
+        employeeIds,
+        status: "pending",
+        createdAt: new Date().toISOString(),
+      },
+      customer: memberCustomer,
+      employees: db.employees.filter((emp) => employeeIds.includes(emp.EId)),
+      orders: currentOrders.map((order) => ({
+        orderId: order.orderId,
+        items: enrichOrderItemsWithMenuData(order.items || []).map((item) => ({
+          menuId: item.menuId || item.MenuId || item.id || "",
+          menuName: item.name || item.menuName || item.MenuName || "",
+          image: item.image || item.img || item.imageUrl || item.menuImage || "",
+          quantity: item.quantity || 1,
+          orderId: order.orderId,
+        })),
+      })),
+      experienceTopics: db.experienceTopics,
+    };
+
+    apiRequest("/api/review-sessions", {
+      method: "POST",
+      body: JSON.stringify({
+        code: fallbackCode,
+        data: reviewData,
+      }),
+    }).catch((error) => {
+      console.warn("Save fallback review session failed:", error.message);
+    });
+
+    setReviewCode(fallbackCode);
+  }
+} else {
+  setReviewCode("");
+}
 
     setPage("payment-success");
   }
@@ -1439,16 +1523,158 @@ async function confirmOrder() {
         />
       )}
 
-      {page === "payment-success" && (
-        <PaymentSuccess
-          customerType={customerType}
-          reviewCode={reviewCode}
-          reviewUrl={reviewCode ? `${window.location.origin}/review/${encodeURIComponent(reviewCode)}` : ""}
-          qrValue={reviewCode ? `${window.location.origin}/review/${encodeURIComponent(reviewCode)}` : ""}
-          onClearTable={clearTable}
-          onGoReview={() => setPage("review")}
-        />
-      )}
+{page === "payment-success" &&
+  (() => {
+    const finalReviewUrl = reviewCode
+      ? `${window.location.origin}/review/${encodeURIComponent(reviewCode)}`
+      : "";
+
+    return (
+      <div
+        style={{
+          width: "100%",
+          minHeight: "100vh",
+          background: "#f7f1e8",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: "40px 16px",
+          boxSizing: "border-box",
+        }}
+      >
+        <div
+          style={{
+            width: "min(92vw, 520px)",
+            background: "#fff",
+            border: "2px solid #222",
+            borderRadius: "28px",
+            padding: "32px 24px",
+            textAlign: "center",
+            boxShadow: "0 12px 30px rgba(0,0,0,0.12)",
+          }}
+        >
+          <div
+            style={{
+              width: "90px",
+              height: "90px",
+              borderRadius: "50%",
+              border: "6px solid #35a852",
+              color: "#35a852",
+              fontSize: "54px",
+              fontWeight: "bold",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              margin: "0 auto 18px",
+            }}
+          >
+            ✓
+          </div>
+
+          <h1
+            style={{
+              fontSize: "34px",
+              margin: "0 0 8px",
+              fontWeight: 800,
+            }}
+          >
+            ชำระเงินสำเร็จ
+          </h1>
+
+          <p
+            style={{
+              fontSize: "20px",
+              margin: "0 0 20px",
+            }}
+          >
+            ขอบคุณที่ใช้บริการ
+          </p>
+
+          {finalReviewUrl ? (
+            <div
+              style={{
+                marginTop: "16px",
+                padding: "16px",
+                background: "#fafafa",
+                borderRadius: "18px",
+                border: "1px solid #eee",
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: "22px",
+                  margin: "0 0 14px",
+                  fontWeight: 800,
+                }}
+              >
+                สแกน QR เพื่อประเมิน
+              </h2>
+
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(finalReviewUrl)}`}
+                alt="QR Review"
+                style={{
+                  width: "220px",
+                  height: "220px",
+                  maxWidth: "80vw",
+                  background: "#fff",
+                  borderRadius: "12px",
+                  padding: "8px",
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={() => setPage("review")}
+                style={{
+                  display: "block",
+                  margin: "14px auto 0",
+                  background: "#35a852",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "14px",
+                  padding: "12px 22px",
+                  fontSize: "18px",
+                  fontWeight: 700,
+                }}
+              >
+                เปิดแบบประเมิน
+              </button>
+            </div>
+          ) : (
+            <p
+              style={{
+                fontSize: "18px",
+                color: "#777",
+                margin: "18px 0",
+              }}
+            >
+              ไม่มี QR สำหรับแบบประเมิน
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              if (clearTable) clearTable();
+            }}
+            style={{
+              marginTop: "22px",
+              background: "#2f80ed",
+              color: "#fff",
+              border: "none",
+              borderRadius: "14px",
+              padding: "14px 26px",
+              fontSize: "18px",
+              fontWeight: 800,
+            }}
+          >
+            กลับสู่หน้าหลัก
+          </button>
+        </div>
+      </div>
+    );
+  })()}
 
       {page === "review" && (
         <div className="review-mobile-fix">
