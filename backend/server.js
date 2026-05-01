@@ -184,7 +184,7 @@ app.get("/api/menus", async (req, res) => {
       FROM Menu m
       LEFT JOIN Categorizers cg ON m.MenuId = cg.MenuId
       LEFT JOIN Category c ON c.Category_Id = cg.Category_Id
-      WHERE m.MenuStatus = N'พร้อมจำหน่าย'
+      WHERE m.MenuStatus = N'available'
       ORDER BY m.MenuId
     `);
 
@@ -259,7 +259,7 @@ app.patch("/api/tables/:tableNumber/status", async (req, res) => {
 
   try {
     const tableNumber = req.params.tableNumber;
-    const status = req.body.status || "ไม่ว่าง";
+    const status = req.body.status || "not available";
 
     await transaction.begin();
     await updateTableStatusInTx(transaction, tableNumber, status);
@@ -533,7 +533,7 @@ app.post("/api/orders", async (req, res) => {
     const { customerId, employeeId, tableNumber, items, CId, EId, TNumber } = req.body;
 
     const cId = customerId || CId || "G000000001";
-    const eId = employeeId || EId || "M123456";
+    const eId = employeeId || EId || "E123456";
     const tNumber = tableNumber || TNumber || "S3";
     const orderItems = Array.isArray(items) ? items : [];
 
@@ -797,7 +797,7 @@ app.post("/api/reviews/employee", async (req, res) => {
 
   try {
     const { employeeId, rating, comment, EId, Rating, Comment } = req.body;
-    const eId = employeeId || EId || "M123456";
+    const eId = employeeId || EId || "E123456";
     const reviewId = await generateUniqueId("EmployeeReview", "REId", "E", 4);
 
     await transaction.begin();
