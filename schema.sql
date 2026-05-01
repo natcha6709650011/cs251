@@ -4,16 +4,23 @@ GO
 CREATE TABLE Employee
 (
     EId VARCHAR(10) PRIMARY KEY,
-    EFirstName VARCHAR(25),
-    ESurName VARCHAR(25),
+    EFirstName NVARCHAR(25),
+    ESurName NVARCHAR(25),
     ETel VARCHAR(10),
-    ERole VARCHAR(20),
+    ERole NVARCHAR(20),
+    EStatus NVARCHAR(20),
     CONSTRAINT check_ERole CHECK(
         ERole IN(
-            'พนักงานเสิรฟ',
-            'แคชเชียร',
-            'ผู้จัดการร้าน',
-            'พ่อครัว'
+            N'พนักงานเสิร์ฟ',
+            N'แคชเชียร์',
+            N'ผู้จัดการร้าน',
+            N'พ่อครัว'
+        )
+    ),
+    CONSTRAINT check_EStatus CHECK(
+        EStatus IN(
+            N'กำลังทำงาน',
+            N'ลาออก'
         )
     )
 );
@@ -22,14 +29,14 @@ GO
 CREATE TABLE Category
 (
     Category_Id VARCHAR(2) PRIMARY KEY,
-    Category_Name VARCHAR(25),
+    Category_Name NVARCHAR(25),
     CONSTRAINT check_category_name CHECK (
         Category_Name IN (
-            'เมนูแนะนำ',
-            'อาหาร',
-            'ของทานเล่น',
-            'ของหวาน',
-            'เครื่องดื่ม'
+            N'เมนูแนะนำ',
+            N'อาหาร',
+            N'ของทานเล่น',
+            N'ของหวาน',
+            N'เครื่องดื่ม'
         )
     )
 );
@@ -38,13 +45,13 @@ GO
 CREATE TABLE Menu
 (
     MenuId VARCHAR(3) PRIMARY KEY,
-    MenuName VARCHAR(25),
+    MenuName NVARCHAR(25),
     Price INT,
     MenuStatus VARCHAR(15),
     CONSTRAINT check_MenuStatus CHECK(
         MenuStatus IN(
-            'พร้อมจำหน่าย',
-            'หมด'
+            N'พร้อมจำหน่าย',
+            N'หมด'
         )
     )
 );
@@ -59,8 +66,8 @@ GO
 CREATE TABLE Member
 (
     CId VARCHAR(10) PRIMARY KEY,
-    MFirstName VARCHAR(25),
-    MSurName VARCHAR(25),
+    MFirstName NVARCHAR(25),
+    MSurName NVARCHAR(25),
     MTel VARCHAR(10),
     MEmail VARCHAR(25),
     FOREIGN KEY (CId) REFERENCES Customer(CId)
@@ -77,19 +84,19 @@ GO
 CREATE TABLE Tables
 (
     TNumber VARCHAR(2) PRIMARY KEY,
-    T_Type VARCHAR(10),
+    T_Type NVARCHAR(10),
     CONSTRAINT check_T_Type CHECK(
         T_Type IN(
-            'เล็ก',
-            'กลาง',
-            'ใหญ่'
+            N'เล็ก',
+            N'กลาง',
+            N'ใหญ่'
         )
     ),
-    TStatus VARCHAR(10),
+    TStatus NVARCHAR(10),
     CONSTRAINT check_TStatus CHECK(
         TStatus IN(
-            'ว่าง',
-            'ไม่ว่าง'
+            N'ว่าง',
+            N'ไม่ว่าง'
         )
     )
 );
