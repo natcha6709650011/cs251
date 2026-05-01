@@ -61,6 +61,57 @@ function uiPaymentToDb(method) {
   return map[method] || method || "Cash";
 }
 
+function formatReservationDate(value) {
+  if (!value) return "";
+
+  const text = String(value);
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+    return text.slice(0, 10);
+  }
+
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  return text;
+}
+
+function formatReservationTime(value) {
+  if (!value) return "";
+
+  const text = String(value);
+
+  const timeMatch = text.match(/(\d{2}):(\d{2})/);
+  if (timeMatch) {
+    return `${timeMatch[1]}:${timeMatch[2]}`;
+  }
+
+  const date = new Date(value);
+  if (!Number.isNaN(date.getTime())) {
+    const hh = String(date.getHours()).padStart(2, "0");
+    const mm = String(date.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm}`;
+  }
+
+  return text;
+}
+
+function normalizeReservationFromDb(item) {
+  return {
+    RId: item.RId,
+    customerId: item.CId || item.customerId,
+    tableNumber: item.TNumber || item.tableNumber,
+    RDate: formatReservationDate(item.RDate || item.date),
+    RTime: formatReservationTime(item.RTime || item.time),
+    PeopleCount: item.PeopleCount || item.peopleCount || item.count || 1,
+    status: item.status || item.RStatus || "reserved",
+  };
+}
+
+
+
 
 function sanitizeCartItemForApi(item) {
   const safeOptions = item?.options
@@ -130,6 +181,7 @@ function App() {
   const [cart, setCart] = useState([]);
 
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [paymentSuccessTotal, setPaymentSuccessTotal] = useState(0);
   const [reviewCode, setReviewCode] = useState("");
   const [reviewCustomer, setReviewCustomer] = useState(null);
   const [remoteReviewData, setRemoteReviewData] = useState(null);
@@ -153,20 +205,23 @@ function App() {
 
 
   useEffect(() => {
-    async function loadRemoteReviewSession() {
+    async function loadReviewDataFromDB() {
       if (page !== "review" || !reviewCode) return;
 
       try {
-        const result = await apiRequest(`/api/review-sessions/${encodeURIComponent(reviewCode)}`);
+        const result = await apiRequest(
+          `/api/review-data/${encodeURIComponent(reviewCode)}`
+        );
+
         if (result?.data) {
           setRemoteReviewData(result.data);
         }
       } catch (error) {
-        console.warn("Remote review session not found:", error.message);
+        console.warn("โหลดข้อมูลรีวิวจาก DB ไม่สำเร็จ:", error.message);
       }
     }
 
-    loadRemoteReviewSession();
+    loadReviewDataFromDB();
   }, [page, reviewCode]);
 
   useEffect(() => {
@@ -215,9 +270,21 @@ function App() {
   const currentReservations = useMemo(() => {
     if (!customer) return [];
 
-    return db.reservations.filter(
-      (reservation) => reservation.customerId === customer.CId
-    );
+    return (db.reservations || [])
+      .filter((reservation) => {
+        const reservationCustomerId =
+          reservation.customerId || reservation.CId || reservation.MemberId || "";
+
+        return String(reservationCustomerId) === String(customer.CId);
+      })
+      .filter((reservation) => {
+        const status = String(
+          reservation.status || reservation.RStatus || reservation.Status || "reserved"
+        ).toLowerCase();
+
+        return !["checked_in", "cancelled", "canceled", "paid", "done"].includes(status);
+      })
+      .map((reservation) => normalizeReservationFromDb(reservation));
   }, [db.reservations, customer]);
 
 
@@ -313,6 +380,7 @@ function App() {
 
     setCart([]);
     setPaymentMethod("");
+    setPaymentSuccessTotal(0);
     setReviewCode("");
     setReviewCustomer(null);
   }
@@ -449,15 +517,7 @@ function App() {
       try {
         const reservationResult = await apiRequest(`/api/reservations/customer/${encodeURIComponent(foundMember.CId)}`);
         memberReservations = Array.isArray(reservationResult.data)
-          ? reservationResult.data.map((item) => ({
-              RId: item.RId,
-              customerId: item.CId,
-              tableNumber: item.TNumber,
-              RDate: typeof item.RDate === "string" ? item.RDate.slice(0, 10) : item.RDate,
-              RTime: typeof item.RTime === "string" ? item.RTime.slice(0, 5) : item.RTime,
-              PeopleCount: item.PeopleCount || 1,
-              status: item.status || "reserved",
-            }))
+          ? reservationResult.data.map(normalizeReservationFromDb)
           : [];
       } catch (reservationError) {
         console.warn("Cannot load reservation history:", reservationError.message);
@@ -618,9 +678,9 @@ function App() {
         RId: result.reservationId,
         customerId: customer.CId,
         tableNumber: table.TNumber,
-        RDate: date,
-        RTime: time,
-        PeopleCount: Number(count) || 1,
+        RDate: formatReservationDate(result.date || date),
+        RTime: formatReservationTime(result.time || time),
+        PeopleCount: Number(result.peopleCount || count) || 1,
         status: "reserved",
         createdAt: new Date().toISOString(),
       };
@@ -646,6 +706,11 @@ function App() {
       (item) => item.TNumber === reservation.tableNumber
     );
 
+    const reservationMember =
+      db.members.find((member) => member.CId === reservation.customerId) ||
+      db.members.find((member) => member.CId === reservation.CId) ||
+      customer;
+
     try {
       await apiRequest(`/api/tables/${reservation.tableNumber}/status`, {
         method: "PATCH",
@@ -659,13 +724,8 @@ function App() {
 
     updateDB((prev) => ({
       ...prev,
-      reservations: prev.reservations.map((item) =>
-        item.RId === reservation.RId
-          ? {
-              ...item,
-              status: "checked_in",
-            }
-          : item
+      reservations: prev.reservations.filter(
+        (item) => String(item.RId) !== String(reservation.RId)
       ),
       tables: prev.tables.map((item) =>
         item.TNumber === reservation.tableNumber
@@ -683,6 +743,12 @@ function App() {
       ...reservation,
       status: "checked_in",
     });
+
+    if (reservationMember) {
+      setCustomer(reservationMember);
+      setCustomerType("Member");
+      setMemberMode("order");
+    }
 
     setSelectedTable(table || { TNumber: reservation.tableNumber });
     setPage("order-food");
@@ -932,88 +998,50 @@ async function confirmOrder() {
     setPage("payment-summary");
   }
 
-  function createReviewSession(currentOrders) {
-    if (customerType !== "Member" || !customer) return "";
+function createReviewSession(currentOrders) {
+    const reservationMember =
+      selectedReservation?.customerId
+        ? db.members.find((member) => member.CId === selectedReservation.customerId)
+        : null;
 
-    const code = generateId("RV");
+    const memberCustomer = customer || reservationMember;
 
-    const employeeIds = [
+    const isMemberCustomer =
+      customerType === "Member" ||
+      Boolean(selectedReservation?.customerId) ||
+      String(memberCustomer?.CId || "").startsWith("M") ||
+      Boolean(memberCustomer?.MFirstName || memberCustomer?.MTel);
+
+    if (!memberCustomer || !isMemberCustomer || currentOrders.length === 0) {
+      return "";
+    }
+
+    // ใช้ OId/orderId จริงจาก Orders ทุกใบในบิลเดียวกัน
+    const orderIds = [
       ...new Set(
-        currentOrders.flatMap((order) =>
-          order.employeeIds?.length ? order.employeeIds : [order.employeeId]
-        )
+        currentOrders
+          .map((order) => order.orderId || order.OId || "")
+          .filter(Boolean)
       ),
-    ].filter(Boolean);
+    ];
 
-    const reviewOrders = currentOrders.map((order) => ({
-      orderId: order.orderId,
-      items: enrichOrderItemsWithMenuData(order.items || []).map((item) => ({
-        menuId: item.menuId || item.MenuId || item.id || "",
-        menuName: item.name || item.menuName || item.MenuName || "",
-        image: item.image || item.img || item.imageUrl || item.menuImage || "",
-        quantity: item.quantity || 1,
-        orderId: order.orderId,
-      })),
-    }));
-
-    const reviewData = {
-      session: {
-        reviewCode: code,
-        customerId: customer.CId,
-        tableNumber: selectedTable?.TNumber || "",
-        orderIds: currentOrders.map((order) => order.orderId),
-        employeeIds,
-        status: "pending",
-        createdAt: new Date().toISOString(),
-      },
-      customer: {
-        CId: customer.CId,
-        MFirstName: customer.MFirstName || customer.firstName || "",
-        MSurName: customer.MSurName || customer.lastName || "",
-        MTel: customer.MTel || customer.tel || "",
-        MEmail: customer.MEmail || customer.email || "",
-      },
-      employees: db.employees.filter((employeeItem) =>
-        employeeIds.includes(employeeItem.EId)
-      ),
-      orders: reviewOrders,
-      experienceTopics: db.experienceTopics,
-    };
-
-    const newReviewSession = {
-      reviewCode: code,
-      customerId: customer.CId,
-      tableNumber: selectedTable?.TNumber || "",
-      orderIds: currentOrders.map((order) => order.orderId),
-      employeeIds,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
-
-    updateDB((prev) => ({
-      ...prev,
-      reviewSessions: [...prev.reviewSessions, newReviewSession],
-    }));
-
-    // สำคัญ: เก็บข้อมูล review ไว้ที่ backend เพื่อให้มือถืออีกเครื่องสแกน QR แล้วดึงได้
-    apiRequest("/api/review-sessions", {
-      method: "POST",
-      body: JSON.stringify({
-        code,
-        data: reviewData,
-      }),
-    }).catch((error) => {
-      console.warn("Save review session failed:", error.message);
-    });
-
-    return code;
+    return orderIds.join(",");
   }
 
   async function confirmPayment() {
     const currentOrders = tableOrders;
+    const realTotal = currentOrders.reduce(
+      (sum, order) => sum + Number(order.total || 0),
+      0
+    );
 
     if (currentOrders.length === 0) {
       alert("ยังไม่มีรายการอาหารในบิล");
+      return;
+    }
+
+    if (realTotal <= 0) {
+      alert("ยอดรวมไม่ถูกต้อง กรุณาตรวจสอบบิล");
       return;
     }
 
@@ -1025,7 +1053,7 @@ async function confirmOrder() {
             orderId: order.orderId,
             method: uiPaymentToDb(paymentMethod),
             tableNumber: selectedTable?.TNumber || "",
-            total: order.total || billTotal,
+            total: order.total || realTotal,
           }),
         });
       }
@@ -1035,17 +1063,41 @@ async function confirmOrder() {
       return;
     }
 
+    setPaymentSuccessTotal(realTotal);
+
     const payment = {
       paymentId: generateId("P"),
       tableNumber: selectedTable?.TNumber || "",
-      customerId: customer?.CId || "",
+      customerId: customer?.CId || selectedReservation?.customerId || "",
       employeeId: employee?.EId || "",
       method: paymentMethod,
-      total: billTotal,
+      total: realTotal,
       status: "paid",
       createdAt: new Date().toISOString(),
       orderIds: currentOrders.map((order) => order.orderId),
     };
+
+    const reservationMember =
+      selectedReservation?.customerId
+        ? db.members.find((member) => member.CId === selectedReservation.customerId)
+        : null;
+
+    const memberCustomer = customer || reservationMember;
+
+    const isMemberCustomer =
+      customerType === "Member" ||
+      Boolean(selectedReservation?.customerId) ||
+      String(memberCustomer?.CId || "").startsWith("M") ||
+      Boolean(memberCustomer?.MFirstName || memberCustomer?.MTel);
+
+    if (isMemberCustomer && currentOrders.length > 0) {
+      const newReviewCode = createReviewSession(currentOrders);
+      setReviewCode(newReviewCode);
+      setRemoteReviewData(null);
+    } else {
+      setReviewCode("");
+      setRemoteReviewData(null);
+    }
 
     updateDB((prev) => ({
       ...prev,
@@ -1065,18 +1117,20 @@ async function confirmOrder() {
               Status: "ว่าง",
               TStatus: "available",
               employeeId: "",
+              employeeIds: [],
+              servingEmployees: [],
+              employees: [],
+              staffIds: [],
+              staff: [],
+              EId: "",
+              currentEmployeeId: "",
+              servedBy: "",
             }
           : table
       ),
     }));
 
-    if (customerType === "Member") {
-      const newReviewCode = createReviewSession(currentOrders);
-      setReviewCode(newReviewCode);
-    } else {
-      setReviewCode("");
-    }
-
+    setCart([]);
     setPage("payment-success");
   }
 
@@ -1114,27 +1168,174 @@ async function confirmOrder() {
   }
 
   function getReviewSessionData() {
+    const thaiMenuMap = {
+      "001": "ข้าวผัดหมู",
+      "002": "ข้าวผัดไก่",
+      "003": "ข้าวผัดหมึก",
+      "004": "ข้าวผัดกุ้ง",
+      "005": "ข้าวผัดรวมมิตร",
+      "006": "ชีสบอล",
+      "007": "ขนมปังอบไอน้ำ",
+      "008": "สละลอยแก้ว",
+      "009": "เฉาก๊วย",
+      "010": "พานาคอตต้า",
+      "011": "มอคค่า",
+      "012": "มัทฉะลาเต้",
+      "013": "ชามะลิ",
+      "014": "ชาดำ",
+      "015": "นมสด",
+      "016": "ข้าวผัดกะเพราหมูสับ",
+      "017": "ข้าวผัดกะเพราไก่",
+      "018": "ข้าวผัดกะเพราหมึก",
+      "019": "ข้าวผัดกะเพรากุ้ง",
+      "020": "ข้าวผัดกะเพราทะเล",
+      "021": "ข้าวผัดหมู",
+      "022": "ข้าวผัดไก่",
+      "023": "ข้าวผัดหมึก",
+      "024": "ข้าวผัดกุ้ง",
+      "025": "ข้าวผัดรวมมิตร",
+      "026": "ข้าวไก่กรอบซอสเกาหลี",
+      "027": "ข้าวไข่เจียวหมูสับ",
+      "028": "สุกี้แห้ง",
+      "029": "สุกี้น้ำ",
+      "030": "ข้าวหมูกระเทียม",
+      "031": "เฟรนช์ฟรายส์",
+      "032": "ไก่ป๊อป",
+      "033": "กุ้งชุบแป้งทอด",
+      "034": "เอ็นไก่ทอด",
+      "035": "นักเก็ต",
+      "036": "ชีสบอล",
+      "037": "ขนมปังอบไอน้ำ",
+      "038": "สละลอยแก้ว",
+      "039": "เฉาก๊วย",
+      "040": "พานาคอตต้า",
+      "041": "บราวนี่",
+      "042": "ไอศกรีมช็อกโกแลต",
+      "043": "ไอศกรีมมะนาว",
+      "044": "ไอศกรีมสตรอว์เบอร์รี",
+      "045": "ไอศกรีมวานิลลา",
+      "046": "น้ำเปล่า",
+      "047": "น้ำส้มคั้นสด",
+      "048": "น้ำมะนาว",
+      "049": "เป๊ปซี่",
+      "050": "ชามะนาว",
+      "051": "ชาไทย",
+      "052": "เอสเปรสโซ",
+      "053": "ลาเต้",
+      "054": "อเมริกาโน่",
+      "055": "โกโก้",
+      "056": "มอคค่า",
+      "057": "มัทฉะลาเต้",
+      "058": "ชามะลิ",
+      "059": "ชาดำ",
+      "060": "นมสด",
+    };
+
+    const imageCandidates = (menuId, name) => {
+      const id = String(menuId || "").padStart(3, "0");
+      const safeName = String(name || "").trim();
+      return [
+        `/image/${id}.png`,
+        `/image/${id}.jpg`,
+        `/image/${id}.jpeg`,
+        `/image/menu/${id}.png`,
+        `/image/menu/${id}.jpg`,
+        `/image/menu/${id}.jpeg`,
+        `/image/menus/${id}.png`,
+        `/image/menus/${id}.jpg`,
+        `/image/menus/${id}.jpeg`,
+        safeName ? `/image/${safeName}.png` : "",
+        safeName ? `/image/${safeName}.jpg` : "",
+      ].filter(Boolean);
+    };
+
+    const normalizeMenus = (rawMenus = []) => {
+      return rawMenus.map((item) => {
+        const rawMenuId =
+          item.menuId ||
+          item.MenuId ||
+          item.id ||
+          item?.menu?.menuId ||
+          item?.menu?.MenuId ||
+          "";
+
+        const menuId = String(rawMenuId || "").replace(/\D/g, "").padStart(3, "0") || rawMenuId;
+
+        const localMenu = db.menus.find(
+          (m) =>
+            String(m.id || m.menuId || m.MenuId || "").replace(/\D/g, "").padStart(3, "0") ===
+            String(menuId || "").replace(/\D/g, "").padStart(3, "0")
+        );
+
+        const menuName =
+          localMenu?.name ||
+          localMenu?.MenuName ||
+          localMenu?.menuName ||
+          thaiMenuMap[menuId] ||
+          item.menuNameTH ||
+          item.MenuNameTH ||
+          item.menuName ||
+          item.MenuName ||
+          item.nameTH ||
+          item.name ||
+          "ไม่ระบุชื่อเมนู";
+
+        const localImage =
+          localMenu?.image ||
+          localMenu?.img ||
+          localMenu?.imageUrl ||
+          localMenu?.menuImage ||
+          localMenu?.MenuImage ||
+          "";
+
+        const image =
+          localImage ||
+          item.image ||
+          item.img ||
+          item.imageUrl ||
+          item.menuImage ||
+          item.MenuImage ||
+          "";
+
+        return {
+          menuId,
+          menuName,
+          name: menuName,
+          MenuName: menuName,
+          image,
+          imageCandidates: imageCandidates(menuId, menuName),
+          quantity: item.quantity || item.Quantity || 1,
+          orderId: item.orderId || item.OId || "",
+        };
+      });
+    };
+
     if (remoteReviewData) {
-      const menus = (remoteReviewData.orders || []).flatMap((order) =>
-        (order.items || []).map((item) => ({
-          menuId: item.menuId,
-          menuName: item.menuName || item.name || "",
-          image: item.image || item.img || item.imageUrl || "",
-          quantity: item.quantity || 1,
-          orderId: item.orderId || order.orderId,
-        }))
-      );
+      const rawMenus =
+        Array.isArray(remoteReviewData.menus) && remoteReviewData.menus.length > 0
+          ? remoteReviewData.menus
+          : (remoteReviewData.orders || []).flatMap((order) =>
+              (order.items || []).map((item) => ({
+                ...item,
+                orderId: item.orderId || order.orderId || order.OId || "",
+              }))
+            );
 
       return {
-        session: remoteReviewData.session,
-        customer: remoteReviewData.customer,
+        session: remoteReviewData.session || null,
+        customer: remoteReviewData.customer || null,
         employees: remoteReviewData.employees || [],
-        menus,
-        experienceTopics: remoteReviewData.experienceTopics || db.experienceTopics,
+        menus: normalizeMenus(rawMenus),
+        experienceTopics:
+          remoteReviewData.experienceTopics || [
+            { id: "cleanliness", name: "ความสะอาด" },
+            { id: "speed", name: "ความรวดเร็ว" },
+            { id: "overall", name: "ความพึงพอใจโดยรวม" },
+          ],
       };
     }
 
-    const session = db.reviewSessions.find(
+    const session = db.reviewSessions?.find(
       (item) => item.reviewCode === reviewCode
     );
 
@@ -1152,12 +1353,9 @@ async function confirmOrder() {
       session.orderIds?.includes(order.orderId)
     );
 
-    const menus = reviewOrders.flatMap((order) =>
+    const rawMenus = reviewOrders.flatMap((order) =>
       enrichOrderItemsWithMenuData(order.items || []).map((item) => ({
-        menuId: item.menuId || item.MenuId || item.id,
-        menuName: item.name || item.menuName || item.MenuName,
-        image: item.image || item.img || item.imageUrl || item.menuImage,
-        quantity: item.quantity,
+        ...item,
         orderId: order.orderId,
       }))
     );
@@ -1166,8 +1364,12 @@ async function confirmOrder() {
       session,
       customer: reviewCustomerData,
       employees: reviewEmployees,
-      menus,
-      experienceTopics: db.experienceTopics,
+      menus: normalizeMenus(rawMenus),
+      experienceTopics: [
+        { id: "cleanliness", name: "ความสะอาด" },
+        { id: "speed", name: "ความรวดเร็ว" },
+        { id: "overall", name: "ความพึงพอใจโดยรวม" },
+      ],
     };
   }
 
@@ -1175,22 +1377,80 @@ async function confirmOrder() {
     const reviewData = getReviewSessionData();
     const session =
       reviewData?.session ||
-      db.reviewSessions.find((item) => item.reviewCode === reviewCode);
+      db.reviewSessions?.find((item) => item.reviewCode === reviewCode);
+
+    const orderIds = [
+      ...new Set(
+        (
+          session?.orderIds ||
+          String(reviewCode || "")
+            .split(",")
+            .map((item) => item.trim())
+        ).filter(Boolean)
+      ),
+    ];
+
+    const employeeIds = [
+      ...new Set(
+        (
+          session?.employeeIds ||
+          (reviewData?.employees || []).map((employeeItem) => employeeItem.EId)
+        ).filter(Boolean)
+      ),
+    ];
+
+    const averageValues = (obj) => {
+      const values = Object.values(obj || {})
+        .map(Number)
+        .filter((value) => value > 0);
+
+      if (!values.length) return 5;
+
+      return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+    };
+
+    const orderRating =
+      Number(reviewPayload.orderRating) ||
+      Number(reviewPayload.foodRating) ||
+      averageValues(reviewPayload.foodRatings) ||
+      Number(reviewPayload.rating) ||
+      5;
+
+    const employeeRating =
+      Number(reviewPayload.employeeRating) ||
+      Number(reviewPayload.serviceRating) ||
+      averageValues(reviewPayload.employeeRatings) ||
+      Number(reviewPayload.rating) ||
+      5;
+
+    const safeComment = String(
+      reviewPayload.orderComment ||
+      reviewPayload.foodComment ||
+      reviewPayload.employeeComment ||
+      reviewPayload.serviceComment ||
+      reviewPayload.comment ||
+      ""
+    ).slice(0, 100);
 
     try {
-      const firstOrderId = session?.orderIds?.[0];
-      if (firstOrderId) {
+      if (orderIds.length === 0) {
+        throw new Error("ไม่พบ Order ID สำหรับบันทึกรีวิว");
+      }
+
+      for (const orderId of orderIds) {
         await apiRequest("/api/reviews/order", {
           method: "POST",
           body: JSON.stringify({
-            orderId: firstOrderId,
-            rating: reviewPayload.orderRating || reviewPayload.foodRating || reviewPayload.rating || 5,
-            comment: reviewPayload.orderComment || reviewPayload.foodComment || reviewPayload.comment || "",
+            orderId,
+            OId: orderId,
+            rating: orderRating,
+            Rating: orderRating,
+            comment: safeComment,
+            Comment: safeComment,
           }),
         });
       }
 
-      const employeeIds = session?.employeeIds || [];
       for (const empId of employeeIds) {
         if (!empId) continue;
 
@@ -1198,8 +1458,11 @@ async function confirmOrder() {
           method: "POST",
           body: JSON.stringify({
             employeeId: empId,
-            rating: reviewPayload.employeeRating || reviewPayload.serviceRating || reviewPayload.rating || 5,
-            comment: reviewPayload.employeeComment || reviewPayload.serviceComment || reviewPayload.comment || "",
+            EId: empId,
+            rating: employeeRating,
+            Rating: employeeRating,
+            comment: safeComment,
+            Comment: safeComment,
           }),
         });
       }
@@ -1220,7 +1483,7 @@ async function confirmOrder() {
           createdAt: new Date().toISOString(),
         },
       ],
-      reviewSessions: prev.reviewSessions.map((item) =>
+      reviewSessions: (prev.reviewSessions || []).map((item) =>
         item.reviewCode === reviewCode
           ? {
               ...item,
@@ -1439,9 +1702,10 @@ async function confirmOrder() {
         />
       )}
 
-      {page === "payment-success" && (
+{page === "payment-success" && (
         <PaymentSuccess
-          customerType={customerType}
+          paymentMethod={paymentMethod}
+          total={paymentSuccessTotal || billTotal}
           reviewCode={reviewCode}
           reviewUrl={reviewCode ? `${window.location.origin}/review/${encodeURIComponent(reviewCode)}` : ""}
           qrValue={reviewCode ? `${window.location.origin}/review/${encodeURIComponent(reviewCode)}` : ""}

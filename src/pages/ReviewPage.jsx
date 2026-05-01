@@ -1,360 +1,394 @@
 import React, { useMemo, useState } from "react";
 
-function StarRating({ value = 0, onChange }) {
+const LOGO_CANDIDATES = [
+  "/image/logo.png",
+  "/image/logo.jpg",
+  "/image/Logo.png",
+  "/image/CSrestaurant.png",
+  "/image/CS Restaurant.png",
+  "/logo.png",
+  "/logo.jpg",
+];
+
+function ImageWithFallback({ candidates = [], alt, style, placeholderStyle }) {
+  const list = candidates.filter(Boolean);
+  const [index, setIndex] = useState(0);
+  const src = list[index];
+
+  if (!src) {
+    return (
+      <div style={placeholderStyle || styles.placeholderImage}>
+        ไม่มีรูป
+      </div>
+    );
+  }
+
   return (
-    <div style={styles.stars}>
+    <img
+      src={src}
+      alt={alt}
+      style={style}
+      onError={() => {
+        if (index < list.length - 1) {
+          setIndex(index + 1);
+        } else {
+          setIndex(list.length);
+        }
+      }}
+    />
+  );
+}
+
+function StarRating({ value = 0, onChange, center = false }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: "6px",
+        justifyContent: center ? "center" : "flex-start",
+        flexWrap: "nowrap",
+      }}
+    >
       {[1, 2, 3, 4, 5].map((star) => (
-        <button
+        <span
           key={star}
-          type="button"
           onClick={() => onChange(star)}
           style={{
-            ...styles.starButton,
-            color: star <= value ? "#f5b400" : "#d8d8d8",
+            fontSize: "50px",
+            lineHeight: 1,
+            cursor: "pointer",
+            color: star <= value ? "#f6c21a" : "#e0e0e0",
+            userSelect: "none",
           }}
         >
           ★
-        </button>
+        </span>
       ))}
     </div>
   );
 }
 
-function average(values, fallback = 5) {
-  const nums = values
-    .map((value) => Number(value))
-    .filter((value) => Number.isFinite(value) && value >= 1 && value <= 5);
-
-  if (nums.length === 0) return fallback;
-
-  return Math.round(nums.reduce((sum, value) => sum + value, 0) / nums.length);
-}
-
 export default function ReviewPage({ reviewData, onSubmit }) {
-  const menus = reviewData?.menus || [];
-  const employees = reviewData?.employees || [];
-  const topics = reviewData?.experienceTopics || [];
-
-  const initialMenuRatings = useMemo(() => {
-    const result = {};
-    menus.forEach((menu, index) => {
-      result[menu.menuId || menu.orderId || index] = 0;
-    });
-    return result;
-  }, [menus]);
-
-  const initialEmployeeRatings = useMemo(() => {
-    const result = {};
-    employees.forEach((employee, index) => {
-      result[employee.EId || employee.employeeId || index] = 0;
-    });
-    return result;
-  }, [employees]);
-
-  const initialTopicRatings = useMemo(() => {
-    const result = {};
-    topics.forEach((topic, index) => {
-      const key = topic.id || topic.topicId || topic.name || topic.title || index;
-      result[key] = 0;
-    });
-    return result;
-  }, [topics]);
-
-  const [menuRatings, setMenuRatings] = useState(initialMenuRatings);
-  const [employeeRatings, setEmployeeRatings] = useState(initialEmployeeRatings);
-  const [topicRatings, setTopicRatings] = useState(initialTopicRatings);
+  const [foodRatings, setFoodRatings] = useState({});
+  const [employeeRatings, setEmployeeRatings] = useState({});
+  const [experienceRatings, setExperienceRatings] = useState({});
   const [comment, setComment] = useState("");
+
+  const customerName = useMemo(() => {
+    const c = reviewData?.customer;
+    if (!c) return "";
+    return `${c.MFirstName || c.firstName || ""} ${c.MSurName || c.lastName || ""}`.trim();
+  }, [reviewData]);
 
   if (!reviewData) {
     return (
       <div style={styles.page}>
-        <div style={styles.emptyCard}>ไม่พบข้อมูลแบบประเมิน</div>
+        <div style={styles.notFound}>ไม่พบข้อมูลแบบประเมิน</div>
       </div>
     );
   }
 
-  const customerName = [
-    reviewData.customer?.MFirstName || reviewData.customer?.firstName,
-    reviewData.customer?.MSurName || reviewData.customer?.lastName,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const menus = reviewData.menus || [];
+  const employees = reviewData.employees || [];
+  const topics =
+    reviewData.experienceTopics || [
+      { id: "cleanliness", name: "ความสะอาด" },
+      { id: "speed", name: "ความรวดเร็ว" },
+      { id: "overall", name: "ความพึงพอใจโดยรวม" },
+    ];
 
-  function setMenuRating(key, value) {
-    setMenuRatings((prev) => ({ ...prev, [key]: value }));
-  }
+  const avg = (obj) => {
+    const values = Object.values(obj).map(Number).filter((v) => v > 0);
+    if (!values.length) return 0;
+    return Math.round(values.reduce((a, b) => a + b, 0) / values.length);
+  };
 
-  function setEmployeeRating(key, value) {
-    setEmployeeRatings((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function setTopicRating(key, value) {
-    setTopicRatings((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function handleSubmit() {
-    const orderRating = average(Object.values(menuRatings), 5);
-    const employeeRating = average(Object.values(employeeRatings), 5);
-    const experienceRating = average(Object.values(topicRatings), 5);
-    const rating = average([orderRating, employeeRating, experienceRating], 5);
-
-    onSubmit({
-      rating,
-      orderRating,
-      foodRating: orderRating,
-      menuRating: orderRating,
-      employeeRating,
-      serviceRating: employeeRating,
-      experienceRating,
-      menuRatings,
+  const handleSubmit = () => {
+    const payload = {
+      foodRatings,
       employeeRatings,
-      topicRatings,
+      experienceRatings,
+      foodRating: avg(foodRatings),
+      orderRating: avg(foodRatings),
+      employeeRating: avg(employeeRatings),
+      serviceRating: avg(employeeRatings),
+      rating: avg({
+        ...foodRatings,
+        ...employeeRatings,
+        ...experienceRatings,
+      }),
       comment,
+      foodComment: comment,
       orderComment: comment,
+      serviceComment: comment,
       employeeComment: comment,
-    });
-  }
+    };
+
+    if (onSubmit) onSubmit(payload);
+  };
 
   return (
     <div style={styles.page}>
-      <div style={styles.headerCard}>
-        <h1 style={styles.title}>แบบประเมินความพึงพอใจ</h1>
-        {customerName && <p style={styles.customer}>คุณ {customerName}</p>}
-      </div>
+      <div style={styles.container}>
+        <div style={styles.header}>
+          <h1 style={styles.title}>
+            แบบประเมินความพึงพอใจ
+            <br />
+            ในการใช้บริการ
+          </h1>
 
-      <section style={styles.section}>
+          <ImageWithFallback
+            candidates={LOGO_CANDIDATES}
+            alt="CS Restaurant"
+            style={styles.logo}
+            placeholderStyle={{ display: "none" }}
+          />
+
+          <div style={styles.customer}>คุณ {customerName || "-"}</div>
+        </div>
+
         <h2 style={styles.sectionTitle}>อาหาร</h2>
 
-        {menus.length === 0 && <p style={styles.muted}>ไม่มีรายการอาหาร</p>}
-
         {menus.map((menu, index) => {
-          const key = menu.menuId || menu.orderId || index;
-          const image = menu.image || menu.img || menu.imageUrl || "";
-          const name = menu.menuName || menu.name || "เมนู";
+          const key = `${menu.menuId || "menu"}-${index}`;
+          const candidates = [
+            menu.image,
+            ...(menu.imageCandidates || []),
+          ];
 
           return (
-            <div key={key} style={styles.itemCard}>
-              {image ? (
-                <img src={image} alt={name} style={styles.foodImage} />
-              ) : (
-                <div style={styles.noImage}>ไม่มีรูป</div>
-              )}
-
-              <div style={styles.itemInfo}>
-                <div style={styles.itemName}>{name}</div>
-                <StarRating
-                  value={Number(menuRatings[key] || 0)}
-                  onChange={(value) => setMenuRating(key, value)}
-                />
+            <div key={key} style={styles.foodCard}>
+              <div style={styles.foodName}>
+                {menu.menuName || menu.name || "ไม่ระบุชื่อเมนู"}
               </div>
-            </div>
-          );
-        })}
-      </section>
 
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>การบริการ</h2>
+              <ImageWithFallback
+                candidates={candidates}
+                alt={menu.menuName || menu.name}
+                style={styles.foodImage}
+                placeholderStyle={styles.placeholderImage}
+              />
 
-        {employees.length === 0 && <p style={styles.muted}>ไม่มีข้อมูลพนักงาน</p>}
-
-        {employees.map((employee, index) => {
-          const key = employee.EId || employee.employeeId || index;
-          const name =
-            [employee.EFirstName, employee.ESurName].filter(Boolean).join(" ") ||
-            employee.name ||
-            "พนักงาน";
-
-          return (
-            <div key={key} style={styles.simpleCard}>
-              <div style={styles.itemName}>{name}</div>
               <StarRating
-                value={Number(employeeRatings[key] || 0)}
-                onChange={(value) => setEmployeeRating(key, value)}
+                center
+                value={foodRatings[key] || 0}
+                onChange={(value) =>
+                  setFoodRatings((prev) => ({
+                    ...prev,
+                    [key]: value,
+                  }))
+                }
               />
             </div>
           );
         })}
-      </section>
 
-      {topics.length > 0 && (
-        <section style={styles.section}>
-          <h2 style={styles.sectionTitle}>ประสบการณ์การใช้บริการ</h2>
+        <hr style={styles.divider} />
 
-          {topics.map((topic, index) => {
-            const key = topic.id || topic.topicId || topic.name || topic.title || index;
-            const label = topic.name || topic.title || topic.label || String(topic);
+        <h2 style={styles.sectionTitle}>การบริการ</h2>
 
-            return (
-              <div key={key} style={styles.simpleCard}>
-                <div style={styles.itemName}>{label}</div>
-                <StarRating
-                  value={Number(topicRatings[key] || 0)}
-                  onChange={(value) => setTopicRating(key, value)}
-                />
-              </div>
-            );
-          })}
-        </section>
-      )}
+        {employees.map((emp, index) => {
+          const empId = emp.EId || `emp-${index}`;
+          const empName =
+            `${emp.EFirstName || ""} ${emp.ESurName || ""}`.trim() || empId;
 
-      <section style={styles.section}>
+          return (
+            <div key={empId} style={styles.serviceCard}>
+              <div style={styles.employeeName}>{empName}</div>
+              <StarRating
+                center
+                value={employeeRatings[empId] || 0}
+                onChange={(value) =>
+                  setEmployeeRatings((prev) => ({
+                    ...prev,
+                    [empId]: value,
+                  }))
+                }
+              />
+            </div>
+          );
+        })}
+
+        <hr style={styles.divider} />
+
+        <h2 style={styles.sectionTitle}>ประสบการณ์การใช้บริการ</h2>
+
+        {topics.map((topic) => (
+          <div key={topic.id} style={styles.topicCard}>
+            <div style={styles.topicName}>{topic.name}</div>
+            <StarRating
+              value={experienceRatings[topic.id] || 0}
+              onChange={(value) =>
+                setExperienceRatings((prev) => ({
+                  ...prev,
+                  [topic.id]: value,
+                }))
+              }
+            />
+          </div>
+        ))}
+
         <h2 style={styles.sectionTitle}>ความคิดเห็นเพิ่มเติม</h2>
+
         <textarea
           value={comment}
-          onChange={(event) => setComment(event.target.value)}
+          onChange={(e) => setComment(e.target.value)}
           placeholder="พิมพ์ความคิดเห็น..."
           style={styles.textarea}
         />
-      </section>
 
-      <button type="button" onClick={handleSubmit} style={styles.submitButton}>
-        ส่งแบบประเมิน
-      </button>
+        <button type="button" onClick={handleSubmit} style={styles.submitButton}>
+          ส่งแบบประเมิน
+        </button>
+      </div>
     </div>
   );
 }
 
 const styles = {
   page: {
-    width: "100%",
-    minHeight: "100vh",
-    padding: "18px 14px 40px",
-    boxSizing: "border-box",
     background: "#f7f1e8",
-    overflowX: "hidden",
+    minHeight: "100vh",
+    padding: "72px 20px 60px",
+    boxSizing: "border-box",
   },
-  headerCard: {
-    maxWidth: "620px",
-    margin: "0 auto 18px",
-    padding: "22px 16px",
-    background: "#ffffff",
-    borderRadius: "22px",
+  container: {
+    width: "100%",
+    maxWidth: "760px",
+    margin: "0 auto",
+  },
+  header: {
     textAlign: "center",
-    boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+    marginBottom: "34px",
   },
   title: {
-    margin: 0,
-    fontSize: "clamp(24px, 5vw, 36px)",
-    lineHeight: 1.25,
+    margin: "0 0 28px",
+    fontSize: "32px",
+    lineHeight: 1.35,
     fontWeight: 800,
+    color: "#111",
+  },
+  logo: {
+    width: "180px",
+    height: "180px",
+    objectFit: "contain",
+    borderRadius: "24px",
+    display: "block",
+    margin: "0 auto 28px",
   },
   customer: {
-    margin: "10px 0 0",
-    fontSize: "18px",
-  },
-  section: {
-    maxWidth: "620px",
-    margin: "0 auto 18px",
+    fontSize: "24px",
+    fontWeight: 500,
+    color: "#111",
   },
   sectionTitle: {
-    margin: "0 0 10px",
-    fontSize: "22px",
+    fontSize: "30px",
     fontWeight: 800,
+    margin: "34px 0 18px",
+    color: "#111",
   },
-  itemCard: {
-    display: "flex",
-    gap: "12px",
-    alignItems: "center",
-    width: "100%",
-    padding: "12px",
-    marginBottom: "12px",
-    background: "#ffffff",
-    borderRadius: "16px",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
-    boxSizing: "border-box",
+  foodCard: {
+    background: "#fff",
+    border: "1px solid #d8d8d8",
+    borderRadius: "26px",
+    padding: "26px 20px",
+    marginBottom: "22px",
+    textAlign: "center",
+    boxShadow: "0 6px 14px rgba(0,0,0,0.04)",
   },
-  simpleCard: {
-    width: "100%",
-    padding: "14px",
-    marginBottom: "12px",
-    background: "#ffffff",
-    borderRadius: "16px",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
-    boxSizing: "border-box",
+  foodName: {
+    fontSize: "24px",
+    fontWeight: 700,
+    marginBottom: "16px",
+    color: "#111",
   },
   foodImage: {
-    width: "92px",
-    height: "76px",
+    width: "190px",
+    height: "150px",
     objectFit: "cover",
-    borderRadius: "12px",
-    flexShrink: 0,
+    borderRadius: "18px",
+    display: "block",
+    margin: "0 auto 18px",
   },
-  noImage: {
-    width: "92px",
-    height: "76px",
-    borderRadius: "12px",
-    background: "#eeeeee",
+  placeholderImage: {
+    width: "190px",
+    height: "150px",
+    borderRadius: "18px",
     display: "flex",
-    alignItems: "center",
     justifyContent: "center",
-    color: "#777777",
-    fontSize: "14px",
-    flexShrink: 0,
-  },
-  itemInfo: {
-    minWidth: 0,
-    flex: 1,
-  },
-  itemName: {
-    fontSize: "18px",
-    fontWeight: 700,
-    marginBottom: "6px",
-    wordBreak: "break-word",
-  },
-  stars: {
-    display: "flex",
-    flexDirection: "row",
-    direction: "ltr",
-    gap: "2px",
     alignItems: "center",
+    margin: "0 auto 18px",
+    background: "#e9e9e9",
+    color: "#777",
+    fontSize: "20px",
   },
-  starButton: {
+  divider: {
     border: "none",
-    background: "transparent",
-    padding: "2px",
-    fontSize: "30px",
-    lineHeight: 1,
-    cursor: "pointer",
-    userSelect: "none",
+    borderTop: "1px solid #d4cbbf",
+    margin: "30px 0",
   },
-  muted: {
-    margin: 0,
-    color: "#777777",
-    fontSize: "16px",
+  serviceCard: {
+    background: "#fff",
+    border: "1px solid #d8d8d8",
+    borderRadius: "22px",
+    padding: "24px 20px",
+    marginBottom: "22px",
+    textAlign: "center",
+    boxShadow: "0 6px 14px rgba(0,0,0,0.04)",
+  },
+  employeeName: {
+    fontSize: "24px",
+    fontWeight: 600,
+    marginBottom: "18px",
+    color: "#111",
+  },
+  topicCard: {
+    background: "#fff",
+    border: "1px solid #ececec",
+    borderRadius: "22px",
+    padding: "22px",
+    marginBottom: "18px",
+    boxShadow: "0 6px 14px rgba(0,0,0,0.04)",
+  },
+  topicName: {
+    fontSize: "24px",
+    fontWeight: 700,
+    marginBottom: "12px",
+    color: "#111",
   },
   textarea: {
     width: "100%",
-    minHeight: "110px",
-    padding: "12px",
-    borderRadius: "14px",
-    border: "1px solid #cccccc",
-    fontSize: "16px",
+    minHeight: "150px",
+    borderRadius: "18px",
+    border: "2px solid #d8d8d8",
+    padding: "18px",
+    fontSize: "20px",
+    outline: "none",
     resize: "vertical",
+    background: "#fff",
     boxSizing: "border-box",
   },
   submitButton: {
-    display: "block",
-    width: "min(100%, 620px)",
-    margin: "12px auto 0",
-    padding: "16px 20px",
+    width: "100%",
+    marginTop: "24px",
+    background: "#2fab4f",
+    color: "#fff",
     border: "none",
-    borderRadius: "16px",
-    background: "#2f9e44",
-    color: "#ffffff",
-    fontSize: "20px",
+    borderRadius: "18px",
+    padding: "18px",
+    fontSize: "24px",
     fontWeight: 800,
     cursor: "pointer",
-    boxShadow: "0 8px 20px rgba(47,158,68,0.25)",
+    boxShadow: "0 8px 18px rgba(76,175,80,0.25)",
   },
-  emptyCard: {
-    maxWidth: "620px",
-    margin: "80px auto",
-    padding: "28px 20px",
-    background: "#ffffff",
-    borderRadius: "22px",
+  notFound: {
+    background: "#fff",
+    borderRadius: "24px",
+    padding: "40px 20px",
     textAlign: "center",
-    fontSize: "22px",
-    fontWeight: 700,
-    boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+    fontSize: "28px",
+    fontWeight: 800,
+    margin: "120px auto 0",
+    maxWidth: "700px",
   },
 };
