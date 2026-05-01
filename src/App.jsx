@@ -151,6 +151,7 @@ function App() {
   const [cart, setCart] = useState([]);
 
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [paymentSuccessTotal, setPaymentSuccessTotal] = useState(0);
   const [reviewCode, setReviewCode] = useState("");
   const [reviewCustomer, setReviewCustomer] = useState(null);
   const [remoteReviewData, setRemoteReviewData] = useState(null);
@@ -174,20 +175,23 @@ function App() {
 
 
   useEffect(() => {
-    async function loadRemoteReviewSession() {
+    async function loadReviewDataFromDB() {
       if (page !== "review" || !reviewCode) return;
 
       try {
-        const result = await apiRequest(`/api/review-sessions/${encodeURIComponent(reviewCode)}`);
+        const result = await apiRequest(
+          `/api/review-data/${encodeURIComponent(reviewCode)}`
+        );
+
         if (result?.data) {
           setRemoteReviewData(result.data);
         }
       } catch (error) {
-        console.warn("Remote review session not found:", error.message);
+        console.warn("โหลดข้อมูลรีวิวจาก DB ไม่สำเร็จ:", error.message);
       }
     }
 
-    loadRemoteReviewSession();
+    loadReviewDataFromDB();
   }, [page, reviewCode]);
 
   useEffect(() => {
@@ -313,6 +317,7 @@ function App() {
 
     setCart([]);
     setPaymentMethod("");
+    setPaymentSuccessTotal(0);
     setReviewCode("");
     setReviewCustomer(null);
   }
@@ -932,94 +937,47 @@ async function confirmOrder() {
     setPage("payment-summary");
   }
 
-  function createReviewSession(currentOrders) {
+function createReviewSession(currentOrders) {
+    const memberCustomer =
+      customer ||
+      db.members.find((member) => String(member.CId || "").startsWith("M"));
+
     const isMemberCustomer =
-    customerType === "Member" ||
-    String(customer?.CId || "").startsWith("M") ||
-    Boolean(customer?.MFirstName || customer?.MTel);
+      customerType === "Member" ||
+      String(memberCustomer?.CId || "").startsWith("M") ||
+      Boolean(memberCustomer?.MFirstName || memberCustomer?.MTel);
 
-if (!customer || !isMemberCustomer) return "";
+    if (!memberCustomer || !isMemberCustomer || currentOrders.length === 0) {
+      return "";
+    }
 
-    const code = generateId("RV");
-
-    const employeeIds = [
-  ...new Set([
-    ...currentOrders.flatMap((order) =>
-      order.employeeIds?.length ? order.employeeIds : [order.employeeId]
-    ),
-    employee?.EId,
-  ]),
-].filter(Boolean);
-
-    const reviewOrders = currentOrders.map((order) => ({
-      orderId: order.orderId,
-      items: enrichOrderItemsWithMenuData(order.items || []).map((item) => ({
-        menuId: item.menuId || item.MenuId || item.id || "",
-        menuName: item.name || item.menuName || item.MenuName || "",
-        image: item.image || item.img || item.imageUrl || item.menuImage || "",
-        quantity: item.quantity || 1,
-        orderId: order.orderId,
-      })),
-    }));
-
-    const reviewData = {
-      session: {
-        reviewCode: code,
-        customerId: customer.CId,
-        tableNumber: selectedTable?.TNumber || "",
-        orderIds: currentOrders.map((order) => order.orderId),
-        employeeIds,
-        status: "pending",
-        createdAt: new Date().toISOString(),
-      },
-      customer: {
-        CId: customer.CId,
-        MFirstName: customer.MFirstName || customer.firstName || "",
-        MSurName: customer.MSurName || customer.lastName || "",
-        MTel: customer.MTel || customer.tel || "",
-        MEmail: customer.MEmail || customer.email || "",
-      },
-      employees: db.employees.filter((employeeItem) =>
-        employeeIds.includes(employeeItem.EId)
+    // ใช้ OId/orderId จริงจาก Orders ทุกใบในบิลเดียวกัน
+    // กรณีพนักงานหลายคนดูแล จะมีหลาย order จึงต้องส่งไปทั้งหมด
+    const orderIds = [
+      ...new Set(
+        currentOrders
+          .map((order) => order.orderId || order.OId || "")
+          .filter(Boolean)
       ),
-      orders: reviewOrders,
-      experienceTopics: db.experienceTopics,
-    };
+    ];
 
-    const newReviewSession = {
-      reviewCode: code,
-      customerId: customer.CId,
-      tableNumber: selectedTable?.TNumber || "",
-      orderIds: currentOrders.map((order) => order.orderId),
-      employeeIds,
-      status: "pending",
-      createdAt: new Date().toISOString(),
-    };
-
-    updateDB((prev) => ({
-      ...prev,
-      reviewSessions: [...prev.reviewSessions, newReviewSession],
-    }));
-
-    // สำคัญ: เก็บข้อมูล review ไว้ที่ backend เพื่อให้มือถืออีกเครื่องสแกน QR แล้วดึงได้
-    apiRequest("/api/review-sessions", {
-      method: "POST",
-      body: JSON.stringify({
-        code,
-        data: reviewData,
-      }),
-    }).catch((error) => {
-      console.warn("Save review session failed:", error.message);
-    });
-
-    return code;
+    return orderIds.join(",");
   }
 
   async function confirmPayment() {
     const currentOrders = tableOrders;
+    const realTotal = currentOrders.reduce(
+      (sum, order) => sum + Number(order.total || 0),
+      0
+    );
 
     if (currentOrders.length === 0) {
       alert("ยังไม่มีรายการอาหารในบิล");
+      return;
+    }
+
+    if (realTotal <= 0) {
+      alert("ยอดรวมไม่ถูกต้อง กรุณาตรวจสอบบิล");
       return;
     }
 
@@ -1031,7 +989,7 @@ if (!customer || !isMemberCustomer) return "";
             orderId: order.orderId,
             method: uiPaymentToDb(paymentMethod),
             tableNumber: selectedTable?.TNumber || "",
-            total: order.total || billTotal,
+            total: order.total || realTotal,
           }),
         });
       }
@@ -1041,17 +999,37 @@ if (!customer || !isMemberCustomer) return "";
       return;
     }
 
+    setPaymentSuccessTotal(realTotal);
+
     const payment = {
       paymentId: generateId("P"),
       tableNumber: selectedTable?.TNumber || "",
       customerId: customer?.CId || "",
       employeeId: employee?.EId || "",
       method: paymentMethod,
-      total: billTotal,
+      total: realTotal,
       status: "paid",
       createdAt: new Date().toISOString(),
       orderIds: currentOrders.map((order) => order.orderId),
     };
+
+    const memberCustomer =
+      customer ||
+      db.members.find((member) => String(member.CId || "").startsWith("M"));
+
+    const isMemberCustomer =
+      customerType === "Member" ||
+      String(memberCustomer?.CId || "").startsWith("M") ||
+      Boolean(memberCustomer?.MFirstName || memberCustomer?.MTel);
+
+    if (isMemberCustomer && currentOrders.length > 0) {
+      const newReviewCode = createReviewSession(currentOrders);
+      setReviewCode(newReviewCode);
+      setRemoteReviewData(null);
+    } else {
+      setReviewCode("");
+      setRemoteReviewData(null);
+    }
 
     updateDB((prev) => ({
       ...prev,
@@ -1084,83 +1062,7 @@ if (!customer || !isMemberCustomer) return "";
       ),
     }));
 
-const isMemberCustomer =
-  customerType === "Member" ||
-  String(customer?.CId || "").startsWith("M") ||
-  Boolean(customer?.MFirstName || customer?.MTel);
-
-const memberCustomer =
-  customer ||
-  db.members.find((member) => String(member.CId || "").startsWith("M"));
-
-const shouldShowReviewQR =
-  String(memberCustomer?.CId || "").startsWith("M") ||
-  Boolean(memberCustomer?.MFirstName || memberCustomer?.MTel);
-
-if (shouldShowReviewQR) {
-  const oldCustomer = customer;
-
-  if (!customer && memberCustomer) {
-    setCustomer(memberCustomer);
-  }
-
-  const newReviewCode = createReviewSession(currentOrders);
-
-  if (newReviewCode) {
-    setReviewCode(newReviewCode);
-  } else {
-    const fallbackCode = generateId("RV");
-
-    const employeeIds = [
-      ...new Set([
-        ...currentOrders.flatMap((order) =>
-          order.employeeIds?.length ? order.employeeIds : [order.employeeId]
-        ),
-        employee?.EId,
-      ]),
-    ].filter(Boolean);
-
-    const reviewData = {
-      session: {
-        reviewCode: fallbackCode,
-        customerId: memberCustomer?.CId,
-        tableNumber: selectedTable?.TNumber || "",
-        orderIds: currentOrders.map((order) => order.orderId),
-        employeeIds,
-        status: "pending",
-        createdAt: new Date().toISOString(),
-      },
-      customer: memberCustomer,
-      employees: db.employees.filter((emp) => employeeIds.includes(emp.EId)),
-      orders: currentOrders.map((order) => ({
-        orderId: order.orderId,
-        items: enrichOrderItemsWithMenuData(order.items || []).map((item) => ({
-          menuId: item.menuId || item.MenuId || item.id || "",
-          menuName: item.name || item.menuName || item.MenuName || "",
-          image: item.image || item.img || item.imageUrl || item.menuImage || "",
-          quantity: item.quantity || 1,
-          orderId: order.orderId,
-        })),
-      })),
-      experienceTopics: db.experienceTopics,
-    };
-
-    apiRequest("/api/review-sessions", {
-      method: "POST",
-      body: JSON.stringify({
-        code: fallbackCode,
-        data: reviewData,
-      }),
-    }).catch((error) => {
-      console.warn("Save fallback review session failed:", error.message);
-    });
-
-    setReviewCode(fallbackCode);
-  }
-} else {
-  setReviewCode("");
-}
-
+    setCart([]);
     setPage("payment-success");
   }
 
@@ -1198,27 +1100,174 @@ if (shouldShowReviewQR) {
   }
 
   function getReviewSessionData() {
+    const thaiMenuMap = {
+      "001": "ข้าวผัดหมู",
+      "002": "ข้าวผัดไก่",
+      "003": "ข้าวผัดหมึก",
+      "004": "ข้าวผัดกุ้ง",
+      "005": "ข้าวผัดรวมมิตร",
+      "006": "ชีสบอล",
+      "007": "ขนมปังอบไอน้ำ",
+      "008": "สละลอยแก้ว",
+      "009": "เฉาก๊วย",
+      "010": "พานาคอตต้า",
+      "011": "มอคค่า",
+      "012": "มัทฉะลาเต้",
+      "013": "ชามะลิ",
+      "014": "ชาดำ",
+      "015": "นมสด",
+      "016": "ข้าวผัดกะเพราหมูสับ",
+      "017": "ข้าวผัดกะเพราไก่",
+      "018": "ข้าวผัดกะเพราหมึก",
+      "019": "ข้าวผัดกะเพรากุ้ง",
+      "020": "ข้าวผัดกะเพราทะเล",
+      "021": "ข้าวผัดหมู",
+      "022": "ข้าวผัดไก่",
+      "023": "ข้าวผัดหมึก",
+      "024": "ข้าวผัดกุ้ง",
+      "025": "ข้าวผัดรวมมิตร",
+      "026": "ข้าวไก่กรอบซอสเกาหลี",
+      "027": "ข้าวไข่เจียวหมูสับ",
+      "028": "สุกี้แห้ง",
+      "029": "สุกี้น้ำ",
+      "030": "ข้าวหมูกระเทียม",
+      "031": "เฟรนช์ฟรายส์",
+      "032": "ไก่ป๊อป",
+      "033": "กุ้งชุบแป้งทอด",
+      "034": "เอ็นไก่ทอด",
+      "035": "นักเก็ต",
+      "036": "ชีสบอล",
+      "037": "ขนมปังอบไอน้ำ",
+      "038": "สละลอยแก้ว",
+      "039": "เฉาก๊วย",
+      "040": "พานาคอตต้า",
+      "041": "บราวนี่",
+      "042": "ไอศกรีมช็อกโกแลต",
+      "043": "ไอศกรีมมะนาว",
+      "044": "ไอศกรีมสตรอว์เบอร์รี",
+      "045": "ไอศกรีมวานิลลา",
+      "046": "น้ำเปล่า",
+      "047": "น้ำส้มคั้นสด",
+      "048": "น้ำมะนาว",
+      "049": "เป๊ปซี่",
+      "050": "ชามะนาว",
+      "051": "ชาไทย",
+      "052": "เอสเปรสโซ",
+      "053": "ลาเต้",
+      "054": "อเมริกาโน่",
+      "055": "โกโก้",
+      "056": "มอคค่า",
+      "057": "มัทฉะลาเต้",
+      "058": "ชามะลิ",
+      "059": "ชาดำ",
+      "060": "นมสด",
+    };
+
+    const imageCandidates = (menuId, name) => {
+      const id = String(menuId || "").padStart(3, "0");
+      const safeName = String(name || "").trim();
+      return [
+        `/image/${id}.png`,
+        `/image/${id}.jpg`,
+        `/image/${id}.jpeg`,
+        `/image/menu/${id}.png`,
+        `/image/menu/${id}.jpg`,
+        `/image/menu/${id}.jpeg`,
+        `/image/menus/${id}.png`,
+        `/image/menus/${id}.jpg`,
+        `/image/menus/${id}.jpeg`,
+        safeName ? `/image/${safeName}.png` : "",
+        safeName ? `/image/${safeName}.jpg` : "",
+      ].filter(Boolean);
+    };
+
+    const normalizeMenus = (rawMenus = []) => {
+      return rawMenus.map((item) => {
+        const rawMenuId =
+          item.menuId ||
+          item.MenuId ||
+          item.id ||
+          item?.menu?.menuId ||
+          item?.menu?.MenuId ||
+          "";
+
+        const menuId = String(rawMenuId || "").replace(/\D/g, "").padStart(3, "0") || rawMenuId;
+
+        const localMenu = db.menus.find(
+          (m) =>
+            String(m.id || m.menuId || m.MenuId || "").replace(/\D/g, "").padStart(3, "0") ===
+            String(menuId || "").replace(/\D/g, "").padStart(3, "0")
+        );
+
+        const menuName =
+          localMenu?.name ||
+          localMenu?.MenuName ||
+          localMenu?.menuName ||
+          thaiMenuMap[menuId] ||
+          item.menuNameTH ||
+          item.MenuNameTH ||
+          item.menuName ||
+          item.MenuName ||
+          item.nameTH ||
+          item.name ||
+          "ไม่ระบุชื่อเมนู";
+
+        const localImage =
+          localMenu?.image ||
+          localMenu?.img ||
+          localMenu?.imageUrl ||
+          localMenu?.menuImage ||
+          localMenu?.MenuImage ||
+          "";
+
+        const image =
+          localImage ||
+          item.image ||
+          item.img ||
+          item.imageUrl ||
+          item.menuImage ||
+          item.MenuImage ||
+          "";
+
+        return {
+          menuId,
+          menuName,
+          name: menuName,
+          MenuName: menuName,
+          image,
+          imageCandidates: imageCandidates(menuId, menuName),
+          quantity: item.quantity || item.Quantity || 1,
+          orderId: item.orderId || item.OId || "",
+        };
+      });
+    };
+
     if (remoteReviewData) {
-      const menus = (remoteReviewData.orders || []).flatMap((order) =>
-        (order.items || []).map((item) => ({
-          menuId: item.menuId,
-          menuName: item.menuName || item.name || "",
-          image: item.image || item.img || item.imageUrl || "",
-          quantity: item.quantity || 1,
-          orderId: item.orderId || order.orderId,
-        }))
-      );
+      const rawMenus =
+        Array.isArray(remoteReviewData.menus) && remoteReviewData.menus.length > 0
+          ? remoteReviewData.menus
+          : (remoteReviewData.orders || []).flatMap((order) =>
+              (order.items || []).map((item) => ({
+                ...item,
+                orderId: item.orderId || order.orderId || order.OId || "",
+              }))
+            );
 
       return {
-        session: remoteReviewData.session,
-        customer: remoteReviewData.customer,
+        session: remoteReviewData.session || null,
+        customer: remoteReviewData.customer || null,
         employees: remoteReviewData.employees || [],
-        menus,
-        experienceTopics: remoteReviewData.experienceTopics || db.experienceTopics,
+        menus: normalizeMenus(rawMenus),
+        experienceTopics:
+          remoteReviewData.experienceTopics || [
+            { id: "cleanliness", name: "ความสะอาด" },
+            { id: "speed", name: "ความรวดเร็ว" },
+            { id: "overall", name: "ความพึงพอใจโดยรวม" },
+          ],
       };
     }
 
-    const session = db.reviewSessions.find(
+    const session = db.reviewSessions?.find(
       (item) => item.reviewCode === reviewCode
     );
 
@@ -1236,12 +1285,9 @@ if (shouldShowReviewQR) {
       session.orderIds?.includes(order.orderId)
     );
 
-    const menus = reviewOrders.flatMap((order) =>
+    const rawMenus = reviewOrders.flatMap((order) =>
       enrichOrderItemsWithMenuData(order.items || []).map((item) => ({
-        menuId: item.menuId || item.MenuId || item.id,
-        menuName: item.name || item.menuName || item.MenuName,
-        image: item.image || item.img || item.imageUrl || item.menuImage,
-        quantity: item.quantity,
+        ...item,
         orderId: order.orderId,
       }))
     );
@@ -1250,8 +1296,12 @@ if (shouldShowReviewQR) {
       session,
       customer: reviewCustomerData,
       employees: reviewEmployees,
-      menus,
-      experienceTopics: db.experienceTopics,
+      menus: normalizeMenus(rawMenus),
+      experienceTopics: [
+        { id: "cleanliness", name: "ความสะอาด" },
+        { id: "speed", name: "ความรวดเร็ว" },
+        { id: "overall", name: "ความพึงพอใจโดยรวม" },
+      ],
     };
   }
 
@@ -1259,22 +1309,80 @@ if (shouldShowReviewQR) {
     const reviewData = getReviewSessionData();
     const session =
       reviewData?.session ||
-      db.reviewSessions.find((item) => item.reviewCode === reviewCode);
+      db.reviewSessions?.find((item) => item.reviewCode === reviewCode);
+
+    const orderIds = [
+      ...new Set(
+        (
+          session?.orderIds ||
+          String(reviewCode || "")
+            .split(",")
+            .map((item) => item.trim())
+        ).filter(Boolean)
+      ),
+    ];
+
+    const employeeIds = [
+      ...new Set(
+        (
+          session?.employeeIds ||
+          (reviewData?.employees || []).map((employeeItem) => employeeItem.EId)
+        ).filter(Boolean)
+      ),
+    ];
+
+    const averageValues = (obj) => {
+      const values = Object.values(obj || {})
+        .map(Number)
+        .filter((value) => value > 0);
+
+      if (!values.length) return 5;
+
+      return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+    };
+
+    const orderRating =
+      Number(reviewPayload.orderRating) ||
+      Number(reviewPayload.foodRating) ||
+      averageValues(reviewPayload.foodRatings) ||
+      Number(reviewPayload.rating) ||
+      5;
+
+    const employeeRating =
+      Number(reviewPayload.employeeRating) ||
+      Number(reviewPayload.serviceRating) ||
+      averageValues(reviewPayload.employeeRatings) ||
+      Number(reviewPayload.rating) ||
+      5;
+
+    const safeComment = String(
+      reviewPayload.orderComment ||
+      reviewPayload.foodComment ||
+      reviewPayload.employeeComment ||
+      reviewPayload.serviceComment ||
+      reviewPayload.comment ||
+      ""
+    ).slice(0, 100);
 
     try {
-      const firstOrderId = session?.orderIds?.[0];
-      if (firstOrderId) {
+      if (orderIds.length === 0) {
+        throw new Error("ไม่พบ Order ID สำหรับบันทึกรีวิว");
+      }
+
+      for (const orderId of orderIds) {
         await apiRequest("/api/reviews/order", {
           method: "POST",
           body: JSON.stringify({
-            orderId: firstOrderId,
-            rating: reviewPayload.orderRating || reviewPayload.foodRating || reviewPayload.rating || 5,
-            comment: reviewPayload.orderComment || reviewPayload.foodComment || reviewPayload.comment || "",
+            orderId,
+            OId: orderId,
+            rating: orderRating,
+            Rating: orderRating,
+            comment: safeComment,
+            Comment: safeComment,
           }),
         });
       }
 
-      const employeeIds = session?.employeeIds || [];
       for (const empId of employeeIds) {
         if (!empId) continue;
 
@@ -1282,8 +1390,11 @@ if (shouldShowReviewQR) {
           method: "POST",
           body: JSON.stringify({
             employeeId: empId,
-            rating: reviewPayload.employeeRating || reviewPayload.serviceRating || reviewPayload.rating || 5,
-            comment: reviewPayload.employeeComment || reviewPayload.serviceComment || reviewPayload.comment || "",
+            EId: empId,
+            rating: employeeRating,
+            Rating: employeeRating,
+            comment: safeComment,
+            Comment: safeComment,
           }),
         });
       }
@@ -1304,7 +1415,7 @@ if (shouldShowReviewQR) {
           createdAt: new Date().toISOString(),
         },
       ],
-      reviewSessions: prev.reviewSessions.map((item) =>
+      reviewSessions: (prev.reviewSessions || []).map((item) =>
         item.reviewCode === reviewCode
           ? {
               ...item,
@@ -1523,158 +1634,17 @@ if (shouldShowReviewQR) {
         />
       )}
 
-{page === "payment-success" &&
-  (() => {
-    const finalReviewUrl = reviewCode
-      ? `${window.location.origin}/review/${encodeURIComponent(reviewCode)}`
-      : "";
-
-    return (
-      <div
-        style={{
-          width: "100%",
-          minHeight: "100vh",
-          background: "#f7f1e8",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          padding: "40px 16px",
-          boxSizing: "border-box",
-        }}
-      >
-        <div
-          style={{
-            width: "min(92vw, 520px)",
-            background: "#fff",
-            border: "2px solid #222",
-            borderRadius: "28px",
-            padding: "32px 24px",
-            textAlign: "center",
-            boxShadow: "0 12px 30px rgba(0,0,0,0.12)",
-          }}
-        >
-          <div
-            style={{
-              width: "90px",
-              height: "90px",
-              borderRadius: "50%",
-              border: "6px solid #35a852",
-              color: "#35a852",
-              fontSize: "54px",
-              fontWeight: "bold",
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              margin: "0 auto 18px",
-            }}
-          >
-            ✓
-          </div>
-
-          <h1
-            style={{
-              fontSize: "34px",
-              margin: "0 0 8px",
-              fontWeight: 800,
-            }}
-          >
-            ชำระเงินสำเร็จ
-          </h1>
-
-          <p
-            style={{
-              fontSize: "20px",
-              margin: "0 0 20px",
-            }}
-          >
-            ขอบคุณที่ใช้บริการ
-          </p>
-
-          {finalReviewUrl ? (
-            <div
-              style={{
-                marginTop: "16px",
-                padding: "16px",
-                background: "#fafafa",
-                borderRadius: "18px",
-                border: "1px solid #eee",
-              }}
-            >
-              <h2
-                style={{
-                  fontSize: "22px",
-                  margin: "0 0 14px",
-                  fontWeight: 800,
-                }}
-              >
-                สแกน QR เพื่อประเมิน
-              </h2>
-
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(finalReviewUrl)}`}
-                alt="QR Review"
-                style={{
-                  width: "220px",
-                  height: "220px",
-                  maxWidth: "80vw",
-                  background: "#fff",
-                  borderRadius: "12px",
-                  padding: "8px",
-                }}
-              />
-
-              <button
-                type="button"
-                onClick={() => setPage("review")}
-                style={{
-                  display: "block",
-                  margin: "14px auto 0",
-                  background: "#35a852",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "14px",
-                  padding: "12px 22px",
-                  fontSize: "18px",
-                  fontWeight: 700,
-                }}
-              >
-                เปิดแบบประเมิน
-              </button>
-            </div>
-          ) : (
-            <p
-              style={{
-                fontSize: "18px",
-                color: "#777",
-                margin: "18px 0",
-              }}
-            >
-              ไม่มี QR สำหรับแบบประเมิน
-            </p>
-          )}
-
-          <button
-            type="button"
-            onClick={() => {
-              if (clearTable) clearTable();
-            }}
-            style={{
-              marginTop: "22px",
-              background: "#2f80ed",
-              color: "#fff",
-              border: "none",
-              borderRadius: "14px",
-              padding: "14px 26px",
-              fontSize: "18px",
-              fontWeight: 800,
-            }}
-          >
-            กลับสู่หน้าหลัก
-          </button>
-        </div>
-      </div>
-    );
-  })()}
+{page === "payment-success" && (
+        <PaymentSuccess
+          paymentMethod={paymentMethod}
+          total={paymentSuccessTotal || billTotal}
+          reviewCode={reviewCode}
+          reviewUrl={reviewCode ? `${window.location.origin}/review/${encodeURIComponent(reviewCode)}` : ""}
+          qrValue={reviewCode ? `${window.location.origin}/review/${encodeURIComponent(reviewCode)}` : ""}
+          onClearTable={clearTable}
+          onGoReview={() => setPage("review")}
+        />
+      )}
 
       {page === "review" && (
         <div className="review-mobile-fix">

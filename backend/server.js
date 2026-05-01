@@ -992,6 +992,162 @@ app.post("/api/payments", async (req, res) => {
   }
 });
 
+
+/* ===========================
+   REVIEW DATA FROM EXISTING DB TABLES ONLY
+   QR uses real OId from Orders. No new DB table.
+=========================== */
+app.get("/api/review-data/:orderId", async (req, res) => {
+  try {
+    const db = await getPool();
+
+    const rawCode = decodeURIComponent(String(req.params.orderId || "").trim());
+    const orderIds = rawCode
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (orderIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "orderId is required",
+      });
+    }
+
+    const orderParams = orderIds.map((_, index) => `@OId${index}`).join(", ");
+
+    const orderRequest = db.request();
+    orderIds.forEach((orderId, index) => {
+      orderRequest.input(`OId${index}`, sql.VarChar(4), orderId);
+    });
+
+    const orderResult = await orderRequest.query(`
+      SELECT 
+        o.OId,
+        o.ODateTime,
+        o.CId,
+        o.EId,
+        o.TNumber,
+        o.OStatus,
+        m.MFirstName,
+        m.MSurName,
+        m.MTel,
+        m.MEmail,
+        e.EFirstName,
+        e.ESurName,
+        e.ETel,
+        e.ERole
+      FROM Orders o
+      LEFT JOIN Member m ON m.CId = o.CId
+      LEFT JOIN Employee e ON e.EId = o.EId
+      WHERE o.OId IN (${orderParams})
+      ORDER BY o.ODateTime, o.OId
+    `);
+
+    if (orderResult.recordset.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "ไม่พบข้อมูลแบบประเมิน",
+      });
+    }
+
+    const orders = orderResult.recordset;
+    const firstOrder = orders[0];
+
+    const foundOrderIds = orders.map((order) => order.OId);
+    const foundOrderParams = foundOrderIds
+      .map((_, index) => `@DetailOId${index}`)
+      .join(", ");
+
+    const detailRequest = db.request();
+    foundOrderIds.forEach((orderId, index) => {
+      detailRequest.input(`DetailOId${index}`, sql.VarChar(4), orderId);
+    });
+
+    const detailResult = await detailRequest.query(`
+      SELECT 
+        od.OD_Id,
+        od.OId,
+        od.MenuId,
+        od.Quantity,
+        od.UnitPrice,
+        od.SubTotal,
+        od.SizeOption,
+        od.Toppings,
+        od.DrinkType,
+        od.Sweetness,
+        od.Note,
+        menu.MenuName,
+        menu.Price
+      FROM OrderDetails od
+      LEFT JOIN Menu menu ON menu.MenuId = od.MenuId
+      WHERE od.OId IN (${foundOrderParams})
+      ORDER BY od.OId, od.OD_Id
+    `);
+
+    const employeeMap = new Map();
+
+    orders.forEach((order) => {
+      if (!order.EId) return;
+
+      employeeMap.set(order.EId, {
+        EId: order.EId,
+        EFirstName: order.EFirstName || "",
+        ESurName: order.ESurName || "",
+        ETel: order.ETel || "",
+        ERole: order.ERole || "",
+      });
+    });
+
+    const reviewData = {
+      session: {
+        reviewCode: rawCode,
+        orderIds: foundOrderIds,
+        customerId: firstOrder.CId,
+        tableNumber: firstOrder.TNumber,
+        employeeIds: Array.from(employeeMap.keys()),
+        status: "pending",
+      },
+      customer: {
+        CId: firstOrder.CId,
+        MFirstName: firstOrder.MFirstName || "",
+        MSurName: firstOrder.MSurName || "",
+        MTel: firstOrder.MTel || "",
+        MEmail: firstOrder.MEmail || "",
+      },
+      employees: Array.from(employeeMap.values()),
+      menus: detailResult.recordset.map((item) => ({
+        menuId: item.MenuId,
+        MenuId: item.MenuId,
+        menuName: item.MenuName,
+        MenuName: item.MenuName,
+        name: item.MenuName,
+        image: "",
+        quantity: item.Quantity || 1,
+        price: item.UnitPrice || item.Price || 0,
+        orderId: item.OId,
+      })),
+      experienceTopics: [
+        { id: "cleanliness", name: "ความสะอาด" },
+        { id: "speed", name: "ความรวดเร็ว" },
+        { id: "overall", name: "ความพึงพอใจโดยรวม" },
+      ],
+    };
+
+    res.json({
+      success: true,
+      data: reviewData,
+    });
+  } catch (error) {
+    console.error("GET /api/review-data/:orderId", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+
 /* ===========================
    REVIEWS
 =========================== */
@@ -1000,15 +1156,30 @@ app.post("/api/reviews/order", async (req, res) => {
     const db = await getPool();
 
     const { orderId, rating, comment, OId, Rating, Comment } = req.body;
+    const finalOrderId = String(orderId || OId || "").trim();
+
+    if (!finalOrderId) {
+      return res.status(400).json({
+        success: false,
+        error: "orderId is required",
+      });
+    }
+
+    const finalRating = Math.max(
+      1,
+      Math.min(5, normalizeNumber(rating || Rating, 5))
+    );
+
+    const finalComment = String(comment || Comment || "").slice(0, 100);
     const reviewId = await generateUniqueId("OrderReview", "ROId", "R", 3);
 
     await db
       .request()
       .input("ROId", sql.VarChar(4), reviewId)
-      .input("Rating", sql.Int, normalizeNumber(rating || Rating, 5))
-      .input("Comment", sql.NVarChar(100), comment || Comment || "")
+      .input("Rating", sql.Int, finalRating)
+      .input("Comment", sql.NVarChar(100), finalComment)
       .input("ReviewDateTime", sql.DateTime2, new Date())
-      .input("OId", sql.VarChar(4), orderId || OId)
+      .input("OId", sql.VarChar(4), finalOrderId)
       .query(`
         INSERT INTO OrderReview (ROId, Rating, Comment, ReviewDateTime, OId)
         VALUES (@ROId, @Rating, @Comment, @ReviewDateTime, @OId)
@@ -1027,7 +1198,21 @@ app.post("/api/reviews/employee", async (req, res) => {
 
   try {
     const { employeeId, rating, comment, EId, Rating, Comment } = req.body;
-    const eId = employeeId || EId || "E123456";
+    const eId = String(employeeId || EId || "").trim();
+
+    if (!eId) {
+      return res.status(400).json({
+        success: false,
+        error: "employeeId is required",
+      });
+    }
+
+    const finalRating = Math.max(
+      1,
+      Math.min(5, normalizeNumber(rating || Rating, 5))
+    );
+
+    const finalComment = String(comment || Comment || "").slice(0, 100);
     const reviewId = await generateUniqueId("EmployeeReview", "REId", "E", 4);
 
     await transaction.begin();
@@ -1035,8 +1220,8 @@ app.post("/api/reviews/employee", async (req, res) => {
     await transaction
       .request()
       .input("REId", sql.VarChar(5), reviewId)
-      .input("Rating", sql.Int, normalizeNumber(rating || Rating, 5))
-      .input("Comment", sql.NVarChar(100), comment || Comment || "")
+      .input("Rating", sql.Int, finalRating)
+      .input("Comment", sql.NVarChar(100), finalComment)
       .input("ReviewDateTime", sql.DateTime2, new Date())
       .query(`
         INSERT INTO EmployeeReview (REId, Rating, Comment, ReviewDateTime)
