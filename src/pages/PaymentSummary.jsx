@@ -1,65 +1,77 @@
+import React, { useMemo } from "react";
 import "../styles/person3-payment-review.css";
 
 function PaymentSummary({
   tableOrders = [],
   billTotal = 0,
-  paymentMethod,
+  paymentMethod = "-",
   selectedTable,
   customer,
   onBack,
   onConfirmPayment,
 }) {
-  const itemCount = tableOrders.reduce((sum, order) => {
-    return (
-      sum +
-      order.items.reduce((itemSum, item) => itemSum + (item.quantity || 0), 0)
-    );
-  }, 0);
+  // 1. ใช้ useMemo คำนวณจำนวนรายการทั้งหมดเพื่อประสิทธิภาพ
+  const totalItemCount = useMemo(() => {
+    return tableOrders.reduce((sum, order) => {
+      const orderQuantity = order.items?.reduce((itemSum, item) => itemSum + (item.quantity || 0), 0) || 0;
+      return sum + orderQuantity;
+    }, 0);
+  }, [tableOrders]);
 
-  function handleConfirmClick() {
+  // 2. จัดรูปแบบชื่อลูกค้าให้พร้อมแสดงผล
+  const customerDisplayName = useMemo(() => {
+    if (customer?.MFirstName) return `${customer.MFirstName} ${customer.MSurName}`;
+    return customer?.name || "ลูกค้าทั่วไป";
+  }, [customer]);
+
+  const handleConfirmClick = () => {
     if (typeof onConfirmPayment !== "function") {
-      alert("ยังไม่ได้เชื่อมฟังก์ชันยืนยันการชำระเงิน");
-      return;
+      return console.error("Payment confirmation function is missing.");
     }
-
     onConfirmPayment();
-  }
+  };
 
   return (
-    <main className="p3-page">
-      <section className="p3-payment-card">
-        <h1 className="p3-title">สรุปการชำระเงิน</h1>
+    <main className="p3-payment-summary-page">
+      <section className="p3-payment-summary-card">
+        <header>
+          <h1 className="p3-payment-summary-title">สรุปการชำระเงิน</h1>
+        </header>
 
-        <div className="p3-payment-detail">
-          <p>
-            <strong>โต๊ะ:</strong> {selectedTable?.TNumber || "-"}
-          </p>
+        {/* 3. ใช้ Description List สำหรับข้อมูลที่เป็น Label: Value */}
+        <dl className="p3-payment-summary-detail">
+          <div className="p3-detail-row">
+            <dt>โต๊ะ:</dt>
+            <dd>{selectedTable?.TNumber || selectedTable?.number || "-"}</dd>
+          </div>
 
-          <p>
-            <strong>ลูกค้า:</strong>{" "}
-            {customer?.MFirstName
-              ? `${customer.MFirstName} ${customer.MSurName}`
-              : customer?.name || "ลูกค้าทั่วไป"}
-          </p>
+          <div className="p3-detail-row">
+            <dt>ลูกค้า:</dt>
+            <dd>{customerDisplayName}</dd>
+          </div>
 
-          <p>
-            <strong>จำนวนรายการ:</strong> {itemCount} รายการ
-          </p>
+          <div className="p3-detail-row">
+            <dt>จำนวนรายการ:</dt>
+            <dd>{totalItemCount.toLocaleString()} รายการ</dd>
+          </div>
 
-          <p>
-            <strong>ช่องทางชำระเงิน:</strong> {paymentMethod || "-"}
-          </p>
-        </div>
+          <div className="p3-detail-row">
+            <dt>ช่องทางชำระเงิน:</dt>
+            <dd className="p3-highlight-text">{paymentMethod}</dd>
+          </div>
+        </dl>
 
-        <div className="p3-payment-total">
+        <div className="p3-payment-summary-total">
           <span>ยอดชำระทั้งหมด</span>
-          <strong>{billTotal} บาท</strong>
+          <strong className="p3-total-amount">
+            {billTotal.toLocaleString()} บาท
+          </strong>
         </div>
 
-        <div className="p3-actions-row">
+        <footer className="p3-payment-summary-actions">
           <button
             type="button"
-            className="p3-btn p3-btn-gray"
+            className="p3-btn-secondary"
             onClick={onBack}
           >
             ย้อนกลับ
@@ -67,12 +79,13 @@ function PaymentSummary({
 
           <button
             type="button"
-            className="p3-btn p3-btn-green"
+            className="p3-btn-primary"
             onClick={handleConfirmClick}
+            disabled={billTotal <= 0}
           >
             ยืนยันการชำระเงิน
           </button>
-        </div>
+        </footer>
       </section>
     </main>
   );
