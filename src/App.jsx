@@ -1,3 +1,4 @@
+import { apiRequest } from "./api";
 import { useEffect, useMemo, useState } from "react";
 
 import { loadDB, saveDB } from "./utils/storage";
@@ -32,29 +33,6 @@ import PaymentSummary from "./pages/PaymentSummary";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import ReviewPage from "./pages/ReviewPage";
 import ThankYou from "./pages/ThankYou";
-
-const API_BASE_URL =
-  window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-    ? "http://localhost:4000"
-    : `http://${window.location.hostname}:4000`;
-
-async function apiRequest(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok || data.success === false) {
-    throw new Error(data.error || data.message || `API error ${response.status}`);
-  }
-
-  return data;
-}
 
 function dbTableToUiTable(table) {
   const rawStatus = table.Status || table.TStatus || "available";
@@ -198,20 +176,15 @@ function App() {
           apiRequest("/api/menus"),
         ]);
 
-        updateDB((prev) => ({
-          ...prev,
-          tables: Array.isArray(tableRes.data)
-            ? tableRes.data.map(dbTableToUiTable)
-            : prev.tables,
-          menus: Array.isArray(menuRes.data) && menuRes.data.length > 0
-            ? menuRes.data
-            : prev.menus,
-        }));
-
         if (Array.isArray(tableRes.data)) {
           updateDB((prev) => ({
             ...prev,
-            tables: tableRes.data.map(dbTableToUiTable),
+            tables: Array.isArray(tableRes.data)
+              ? tableRes.data.map(dbTableToUiTable)
+              : prev.tables,
+            menus: Array.isArray(menuRes.data) && menuRes.data.length > 0
+              ? menuRes.data
+              : prev.menus,
           }));
         }
       } catch (error) {
