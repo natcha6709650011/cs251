@@ -1,82 +1,140 @@
+// src/pages/OrderFood.jsx
 import "../styles/person2-order.css";
+import { useMemo } from "react";
+import { menus as menuData } from "../data/menuData";
 
-const tabs = [
-  { key: "recommended", label: "เมนูแนะนำ" },
-  { key: "food", label: "อาหาร" },
-  { key: "snackDessert", label: "ของทานเล่นและของหวาน" },
-  { key: "drink", label: "เครื่องดื่ม" },
-];
-
-function OrderFood({
+export default function OrderFood({
   menus = [],
-  activeCategory = "recommended",
+  activeCategory,
   setActiveCategory,
   onMenuClick,
 }) {
-  const allMenus = Array.isArray(menus) ? menus : Object.values(menus).flat();
+  const displayMenus = useMemo(() => {
+    const menuList = Array.isArray(menus) ? menus : [];
 
-  const displayMenus = allMenus.filter((menu) => {
+    const mergedMenus = menuList.map((menu) => {
+      const originalMenu = menuData.find(
+        (item) =>
+          String(item.id) === String(menu.id) || item.name === menu.name
+      );
+
+      return {
+        ...originalMenu,
+        ...menu,
+        image:
+          menu.image && menu.image.trim() !== ""
+            ? menu.image
+            : originalMenu?.image || "",
+        category: menu.category || originalMenu?.category,
+        recommended: menu.recommended ?? originalMenu?.recommended,
+      };
+    });
+
     if (activeCategory === "recommended") {
-      return menu.category === "recommended" || menu.recommended === true;
+      return mergedMenus.filter(
+        (m) => m.category === "recommended" || m.recommended === true
+      );
     }
 
-    return menu.category === activeCategory;
-  });
+    return mergedMenus.filter((m) => m.category === activeCategory);
+  }, [menus, activeCategory]);
 
   return (
-    <main className="p2-order-page">
-      <section className="p2-category-wrapper">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            className={
-              activeCategory === tab.key
-                ? "p2-category-btn p2-category-active"
-                : "p2-category-btn"
-            }
-            onClick={() => setActiveCategory(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </section>
+    <div className="p2-menu-page">
+      <div className="p2-top-header">
+        <div className="p2-header-content">
+          <div className="p2-profile-section">
+            <div className="p2-avatar">
+              <img
+                src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100"
+                alt="profile"
+                referrerPolicy="no-referrer"
+              />
+            </div>
 
-      <section className="p2-menu-grid">
-        {displayMenus.length === 0 && (
-          <div className="p2-empty-menu">
-            ไม่พบเมนูในหมวดนี้ กรุณาเช็ก category ใน mockData.js
+            <button className="p2-btn-white">M5</button>
+            <button className="p2-btn-white">เลือกโต๊ะ</button>
           </div>
-        )}
 
+          <div className="p2-cart-section">
+            <span className="p2-cart-icon">🛒</span>
+            <button className="p2-btn-white">ตะกร้าของคุณ</button>
+            <button className="p2-btn-white">บิล</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="p2-category-tabs">
+        <button
+          className={activeCategory === "recommended" ? "p2-active" : ""}
+          onClick={() => setActiveCategory("recommended")}
+        >
+          เมนูแนะนำ
+        </button>
+
+        <button
+          className={activeCategory === "food" ? "p2-active" : ""}
+          onClick={() => setActiveCategory("food")}
+        >
+          อาหาร
+        </button>
+
+        <button
+          className={activeCategory === "snackDessert" ? "p2-active" : ""}
+          onClick={() => setActiveCategory("snackDessert")}
+        >
+          ของทานเล่นและของหวาน
+        </button>
+
+        <button
+          className={activeCategory === "drink" ? "p2-active" : ""}
+          onClick={() => setActiveCategory("drink")}
+        >
+          เครื่องดื่ม
+        </button>
+      </div>
+
+      <div className="p2-menu-grid">
         {displayMenus.map((menu) => (
-          <button
+          <div
             key={menu.id}
-            type="button"
             className="p2-menu-card"
             onClick={() => onMenuClick(menu)}
           >
-            <div className="p2-menu-image-box">
+            <div className="p2-card-img">
               {menu.image ? (
                 <img
-                  className="p2-menu-image"
                   src={menu.image}
                   alt={menu.name}
-                  onError={(event) => {
-                    event.currentTarget.style.display = "none";
+                  referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    e.currentTarget.src =
+                      "https://placehold.co/180x180?text=Image";
                   }}
                 />
               ) : (
-                <div className="p2-menu-image-placeholder">ใส่รูป</div>
+                <div
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: "#f1f1f1",
+                    color: "#777",
+                  }}
+                >
+                  ใส่รูป
+                </div>
               )}
             </div>
 
-            <p className="p2-menu-name">{menu.name}</p>
-          </button>
+            <div className="p2-card-detail">
+              <h4>{menu.name}</h4>
+            </div>
+          </div>
         ))}
-      </section>
-    </main>
+      </div>
+    </div>
   );
 }
-
-export default OrderFood;

@@ -1,6 +1,7 @@
 import "../styles/person2-order.css";
+import { menus as menuData } from "../data/menuData";
 
-function MenuDetail({
+export default function MenuDetail({
   selectedMenu,
   menuOptions,
   setMenuOptions,
@@ -9,167 +10,213 @@ function MenuDetail({
 }) {
   if (!selectedMenu) return null;
 
-  function updateOption(key, value) {
+  const updateOption = (key, value) => {
+    setMenuOptions((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const toggleTopping = (topping) => {
+    setMenuOptions((prev) => {
+      const currentToppings = Array.isArray(prev.toppings)
+        ? prev.toppings
+        : prev.topping
+        ? [prev.topping]
+        : [];
+
+      const alreadySelected = currentToppings.includes(topping);
+
+      return {
+        ...prev,
+        topping: "",
+        toppings: alreadySelected
+          ? currentToppings.filter((item) => item !== topping)
+          : [...currentToppings, topping],
+      };
+    });
+  };
+
+  const isToppingSelected = (topping) => {
+    const currentToppings = Array.isArray(menuOptions.toppings)
+      ? menuOptions.toppings
+      : menuOptions.topping
+      ? [menuOptions.topping]
+      : [];
+
+    return currentToppings.includes(topping);
+  };
+
+  const clearToppings = () => {
     setMenuOptions((prev) => ({
       ...prev,
-      [key]: value,
+      topping: "",
+      toppings: [],
     }));
-  }
+  };
 
-  // ฟังก์ชันจัดการ Checkbox สำหรับ Topping
-  function handleToppingChange(toppingName) {
-    const currentToppings = menuOptions.toppings || [];
-    if (currentToppings.includes(toppingName)) {
-      updateOption("toppings", currentToppings.filter(t => t !== toppingName));
-    } else {
-      updateOption("toppings", [...currentToppings, toppingName]);
-    }
-  }
+  const originalMenu = menuData.find(
+    (menu) =>
+      String(menu.id) === String(selectedMenu.id) ||
+      menu.name === selectedMenu.name
+  );
 
-  function handleAddToCart() {
-    onAddToCart(selectedMenu, menuOptions);
-  }
+  const imageSrc =
+    selectedMenu.image && selectedMenu.image.trim() !== ""
+      ? selectedMenu.image
+      : originalMenu?.image || "";
 
   return (
-    <main className="p2-detail-container">
-      <section className="p2-detail-card">
-       <button type="button" className="p2-back-btn" onClick={onBack}>
-  <span className="p2-arrow-icon">❮</span> {/* ใช้สัญลักษณ์หัวลูกศรที่หนากว่า */}
-</button>
+    <div className="p2-detail-container">
+      <div className="p2-detail-card">
+        <button className="p2-back-btn" onClick={onBack}>
+          ‹
+        </button>
 
-        <div className="p2-detail-main-content">
-          {/* ฝั่งซ้าย: รูปและชื่อเมนู */}
-          <div className="p2-detail-left-side">
-            <div className="p2-detail-img-wrapper">
-              <img src={selectedMenu.image} alt={selectedMenu.name} className="p2-detail-img" />
-            </div>
-            <h2 className="p2-detail-menu-name">{selectedMenu.name}</h2>
-          </div>
-
-          {/* ฝั่งขวา: รายการตัวเลือก */}
-          <div className="p2-detail-right-side">
-            <div className="p2-options-scroll-area">
-              
-              {/* --- ส่วนของอาหาร (Food) --- */}
-              {(selectedMenu.optionType === "food") && (
-                <>
-                  <div className="p2-option-section">
-                    <h4 className="p2-option-header">ปริมาณ</h4>
-                    <div className="p2-radio-group">
-                      {["ธรรมดา", "พิเศษ"].map((size) => (
-                        <label className="p2-option-label" key={size}>
-                          <input type="radio" name="size" checked={menuOptions.size === size} onChange={() => updateOption("size", size)} />
-                          <span className="p2-label-text">{size} {size === "พิเศษ" ? "(+ 10 บาท)" : ""}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="p2-option-section">
-                    <h4 className="p2-option-header">ท็อปปิ้ง</h4>
-                    <div className="p2-checkbox-group">
-                      {["ไข่ดาว (+10.-)", "ไข่เจียว (+10.-)", "ไข่ข้น (+15.-)"].map((topping) => (
-                        <label className="p2-option-label" key={topping}>
-                          <input type="checkbox" checked={(menuOptions.toppings || []).includes(topping)} onChange={() => handleToppingChange(topping)} />
-                          <span className="p2-label-text">{topping}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-              {/* --- ส่วนของของทอด (Snack) --- */}
-{selectedMenu.optionType === "snack" && (
-  <>
-    <div className="p2-option-section">
-      <h4 className="p2-option-header">ปริมาณ</h4>
-      <div className="p2-radio-group">
-        {["ธรรมดา", "พิเศษ"].map((size) => (
-          <label className="p2-option-label" key={size}>
-            <input
-              type="radio"
-              name="size"
-              checked={menuOptions.size === size}
-              onChange={() => updateOption("size", size)}
+        <div className="p2-detail-left">
+          {imageSrc ? (
+            <img
+              src={imageSrc}
+              alt={selectedMenu.name}
+              className="p2-detail-img"
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                e.currentTarget.src =
+                  "https://placehold.co/320x320?text=Image";
+              }}
             />
-            <span className="p2-label-text">
-              {size} {size === "พิเศษ" ? "(+10 บาท)" : ""}
-            </span>
-          </label>
-        ))}
-      </div>
-    </div>
+          ) : (
+            <div className="p2-detail-img p2-detail-img-empty">ใส่รูป</div>
+          )}
 
-    <div className="p2-option-section">
-      <h4 className="p2-option-header">ท็อปปิ้ง</h4>
-      <div className="p2-checkbox-group">
-        {["ชีสดิป (+10.-)"].map((topping) => (
-          <label className="p2-option-label" key={topping}>
-            <input
-              type="checkbox"
-              checked={(menuOptions.toppings || []).includes(topping)}
-              onChange={() => handleToppingChange(topping)}
-            />
-            <span className="p2-label-text">{topping}</span>
-          </label>
-        ))}
-      </div>
-    </div>
-  </>
-)}
+          <h2 className="p2-detail-title">{selectedMenu.name}</h2>
+        </div>
 
-              {/* --- ส่วนของเครื่องดื่ม (Drink) --- */}
-              {selectedMenu.optionType === "drink" && (
-                <>
-                  <div className="p2-option-section">
-                    <h4 className="p2-option-header">ระดับความหวาน</h4>
-                    <div className="p2-radio-group">
-                      {["100%", "50%", "25%", "0%"].map((sweet) => (
-                        <label className="p2-option-label" key={sweet}>
-                          <input type="radio" name="sweetness" checked={menuOptions.sweetness === sweet} onChange={() => updateOption("sweetness", sweet)} />
-                          <span className="p2-label-text">หวาน {sweet}</span>
+        <div className="p2-detail-right">
+          <div className="p2-options-scroll">
+            {(selectedMenu.optionType === "food" ||
+              selectedMenu.optionType === "snack") && (
+              <>
+                <div className="p2-option-group">
+                  <h4>ปริมาณ</h4>
+
+                  <label className="p2-choice-row">
+                    <input
+                      type="radio"
+                      name="size"
+                      checked={menuOptions.size === "ธรรมดา"}
+                      onChange={() => updateOption("size", "ธรรมดา")}
+                    />
+                    <span>ธรรมดา</span>
+                  </label>
+
+                  <label className="p2-choice-row">
+                    <input
+                      type="radio"
+                      name="size"
+                      checked={menuOptions.size === "พิเศษ"}
+                      onChange={() => updateOption("size", "พิเศษ")}
+                    />
+                    <span>พิเศษ (+10 บาท)</span>
+                  </label>
+                </div>
+
+                <div className="p2-option-group">
+                  <h4>ท็อปปิ้ง</h4>
+
+                  {selectedMenu.optionType === "food" ? (
+                    <>
+                      <label className="p2-choice-row">
+                        <input
+                          type="checkbox"
+                          checked={
+                            !menuOptions.toppings ||
+                            menuOptions.toppings.length === 0
+                          }
+                          onChange={clearToppings}
+                        />
+                        <span>ไม่ใส่</span>
+                      </label>
+
+                      {["ไข่ดาว", "ไข่เจียว", "ไข่ข้น"].map((topping) => (
+                        <label className="p2-choice-row" key={topping}>
+                          <input
+                            type="checkbox"
+                            checked={isToppingSelected(topping)}
+                            onChange={() => toggleTopping(topping)}
+                          />
+                          <span>
+                            {topping}{" "}
+                            {topping === "ไข่ข้น" ? "(+15.-)" : "(+10.-)"}
+                          </span>
                         </label>
                       ))}
-                    </div>
-                  </div>
+                    </>
+                  ) : (
+                    <label className="p2-choice-row">
+                      <input
+                        type="checkbox"
+                        checked={isToppingSelected("ชีสดิป")}
+                        onChange={() => toggleTopping("ชีสดิป")}
+                      />
+                      <span>ชีสดิป (+10.-)</span>
+                    </label>
+                  )}
+                </div>
+              </>
+            )}
 
-                  <div className="p2-option-section">
-                    <h4 className="p2-option-header">รูปแบบ</h4>
-                    <div className="p2-radio-group">
-                      {["เย็น", "ปั่น (+5.-)"].map((type) => (
-                        <label className="p2-option-label" key={type}>
-                          <input type="radio" name="drinkType" checked={menuOptions.drinkType === type} onChange={() => updateOption("drinkType", type)} />
-                          <span className="p2-label-text">{type}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
+            {selectedMenu.optionType === "drink" && (
+              <>
+                <div className="p2-option-group">
+                  <h4>ระดับความหวาน</h4>
 
-              {/* --- ส่วนเพิ่มเติม (มีทุกเมนู) --- */}
-              <div className="p2-option-section">
-                <h4 className="p2-option-header">เพิ่มเติม</h4>
-                <input
-                  type="text"
-                  className="p2-note-input"
-                  placeholder="ระบุรายละเอียดเพิ่มเติม"
-                  value={menuOptions.note || ""}
-                  onChange={(e) => updateOption("note", e.target.value)}
-                />
-              </div>
+                  {["100%", "50%", "25%", "0%"].map((sweetness) => (
+                    <label className="p2-choice-row" key={sweetness}>
+                      <input
+                        type="radio"
+                        name="sweetness"
+                        checked={menuOptions.sweetness === sweetness}
+                        onChange={() => updateOption("sweetness", sweetness)}
+                      />
+                      <span>หวาน {sweetness}</span>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="p2-option-group">
+                  <h4>รูปแบบ</h4>
+
+                  {["เย็น", "ปั่น (+5.-)"].map((drinkType) => (
+                    <label className="p2-choice-row" key={drinkType}>
+                      <input
+                        type="radio"
+                        name="drinkType"
+                        checked={menuOptions.drinkType === drinkType}
+                        onChange={() => updateOption("drinkType", drinkType)}
+                      />
+                      <span>{drinkType}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div className="p2-option-group">
+              <h4>เพิ่มเติม</h4>
+
+              <input
+                type="text"
+                className="p2-note-input"
+                placeholder="ระบุรายละเอียดเพิ่มเติม"
+                value={menuOptions.note || ""}
+                onChange={(e) => updateOption("note", e.target.value)}
+              />
             </div>
           </div>
         </div>
 
-        <div className="p2-detail-footer">
-          <button type="button" className="p2-add-to-cart-btn" onClick={handleAddToCart}>
-            ยืนยัน
-          </button>
-        </div>
-      </section>
-    </main>
+        <button className="p2-add-to-cart-btn" onClick={onAddToCart}>
+          ยืนยัน
+        </button>
+      </div>
+    </div>
   );
 }
-
-export default MenuDetail;
