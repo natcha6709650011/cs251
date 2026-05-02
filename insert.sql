@@ -1,3 +1,15 @@
+USE cs251;
+GO
+
+INSERT INTO Category (Category_Id, Category_Name)
+VALUES
+('01', N'เมนูแนะนำ'),
+('02', N'อาหาร'),
+('03', N'ของทานเล่น'),
+('04', N'ของหวาน'),
+('05', N'เครื่องดื่ม');
+GO
+
 INSERT INTO Employee (EId, EFirstName, ESurName, ETel, ERole, EStatus)
 VALUES
 ('E123456', N'ขยัน', N'รักดี', '0811111111', N'พนักงานเสิร์ฟ', N'กำลังทำงาน'),
@@ -5,7 +17,23 @@ VALUES
 ('E345678', N'สุดา', N'รักษา', '0833333333', N'แคชเชียร์', N'กำลังทำงาน');
 GO
 
-INSERT INTO Tables (TNumber, T_Type, TStatus)
+INSERT INTO Customer (CId)
+VALUES
+('M00001'),
+('G00001');
+GO
+
+INSERT INTO General (CId)
+VALUES
+('G00001');
+GO
+
+INSERT INTO Member (CId, MFirstName, MSurName, MTel, MEmail)
+VALUES
+('M00001', N'ณัชชา', N'กาญจนาภา', '0812345678', 'member@email.com');
+GO
+
+INSERT INTO Tables (TNumber, T_Type, Status)
 VALUES
 ('S1', N'เล็ก', N'ว่าง'),
 ('S2', N'เล็ก', N'ว่าง'),
@@ -22,15 +50,6 @@ VALUES
 ('L3', N'ใหญ่', N'ว่าง'),
 ('L4', N'ใหญ่', N'ว่าง'),
 ('L5', N'ใหญ่', N'ว่าง');
-GO
-
-INSERT INTO Category (Category_Id, Category_Name)
-VALUES
-('01', N'เมนูแนะนำ'),
-('02', N'อาหาร'),
-('03', N'ของทานเล่น'),
-('04', N'ของหวาน'),
-('05', N'เครื่องดื่ม');
 GO
 
 INSERT INTO Menu (MenuId, MenuName, Price, MenuStatus)
@@ -159,20 +178,4 @@ VALUES
 ('05', '058'),
 ('05', '059'),
 ('05', '060');
-GO
-
-INSERT INTO Customer (CId)
-VALUES
-('M00001'),
-('G00001');
-GO
-
-INSERT INTO Member (CId, MFirstName, MSurName, MTel, MEmail)
-VALUES
-('M00001', N'ณัชชา', N'กาญจนาภา', '0812345678', 'member@email.com');
-GO
-
-INSERT INTO General (CId)
-VALUES
-('G00001');
 GO
