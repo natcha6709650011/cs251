@@ -1,12 +1,12 @@
 import React, { useMemo } from "react";
-import * as menuModule from "../data/menuData";
+import { menus } from "../data/menuData";
 import "../styles/person3-payment-review.css";
 
-
-const menuData = menuModule.default || menuModule.menuData || [];
-
-const normalizeMenuId = (value = "") =>
-  String(value || "").replace(/\D/g, "").padStart(3, "0");
+const normalizeMenuId = (value = "") => {
+  const text = String(value || "").trim();
+  const onlyDigits = text.replace(/\D/g, "");
+  return onlyDigits ? onlyDigits.padStart(3, "0") : text;
+};
 
 const findMenuFromData = (item = {}) => {
   const itemMenuId = normalizeMenuId(
@@ -29,14 +29,13 @@ const findMenuFromData = (item = {}) => {
       ""
   ).trim();
 
-  return menuData.find((menu) => {
+  return menus.find((menu) => {
     const menuId = normalizeMenuId(
-      menu.menuId ||
+      menu.id ||
+        menu.menuId ||
         menu.MenuId ||
         menu.MenuID ||
-        menu.menuID ||
-        menu.id ||
-        menu.ID
+        menu.menuID
     );
 
     const menuName = String(
@@ -45,8 +44,6 @@ const findMenuFromData = (item = {}) => {
         menu.MenuName ||
         menu.menuName ||
         menu.menu_name ||
-        menu.Menuname ||
-        menu.menuname ||
         ""
     ).trim();
 
@@ -55,6 +52,24 @@ const findMenuFromData = (item = {}) => {
       (itemName && menuName && menuName === itemName)
     );
   });
+};
+
+const getBillItemName = (item = {}) => {
+  const localMenu = findMenuFromData(item);
+
+  return (
+    item.name ||
+    item.Name ||
+    item.MenuName ||
+    item.menuName ||
+    item.menu_name ||
+    item.Menuname ||
+    item.menuname ||
+    localMenu?.name ||
+    localMenu?.MenuName ||
+    localMenu?.menuName ||
+    "ไม่พบชื่อเมนู"
+  );
 };
 
 const getBillItemImage = (item = {}) => {
@@ -69,37 +84,26 @@ const getBillItemImage = (item = {}) => {
     item.ImageUrl ||
     item.MenuImage ||
     item.menuImage ||
-    item.MenuImg ||
-    item.menuImg ||
     localMenu?.image ||
     localMenu?.Image ||
     localMenu?.img ||
-    localMenu?.Img ||
-    localMenu?.imageUrl ||
     ""
   );
 };
 
-const getBillItemName = (item = {}) => {
-  const localMenu = findMenuFromData(item);
-
-  return (
-    item.name ||
-    item.Name ||
-    item.MenuName ||
-    item.menuName ||
-    item.menu_name ||
-    item.Menuname ||
-    item.menuname ||
-    item.Menu ||
-    localMenu?.name ||
-    localMenu?.MenuName ||
-    localMenu?.menuName ||
-    "ไม่พบชื่อเมนู"
+const getBillItemPrice = (item = {}) =>
+  Number(
+    item.finalPrice ||
+      item.price ||
+      item.Price ||
+      item.unitPrice ||
+      item.UnitPrice ||
+      0
   );
-};
 
-// 1. แยก Logic การจัดรูปแบบ Option ออกไปข้างนอกเพื่อให้อ่านง่าย
+const getBillItemQuantity = (item = {}) =>
+  Number(item.quantity || item.Quantity || 1);
+
 const formatItemOptions = (options = {}) => {
   const rows = [];
 
@@ -111,9 +115,9 @@ const formatItemOptions = (options = {}) => {
     rows.push({ label: "ประเภท:", value: options.drinkType });
   }
 
-  if (options.sweetness) {
-    rows.push({ label: "ระดับความหวาน:", value: `หวาน ${options.sweetness}` });
-  }
+if (options.sweetness) {
+  rows.push({ label: "ระดับความหวาน:", value: `หวาน ${options.sweetness}` });
+}
 
   if (options.topping) {
     rows.push({ label: "ท็อปปิ้ง:", value: options.topping });
@@ -136,18 +140,17 @@ const formatItemOptions = (options = {}) => {
   return rows;
 };
 
-// 2. สร้าง Sub-component เล็กๆ เพื่อลดความซับซ้อนของ JSX หลัก
 const BillItem = ({ item }) => {
-  const image = getBillItemImage(item);
-  const name = getBillItemName(item) || item.name;
-  const options = formatItemOptions(item.options);
-  const totalPrice = (item.finalPrice || item.price || item.UnitPrice || item.unitPrice || 0) * (item.quantity || item.Quantity || 1);
+  const itemName = getBillItemName(item);
+  const itemImage = getBillItemImage(item);
+  const options = formatItemOptions(item.options || {});
+  const totalPrice = getBillItemPrice(item) * getBillItemQuantity(item);
 
   return (
     <div className="p3-bill-order-card">
       <div className="p3-bill-order-img">
-        {image ? (
-          <img src={image} alt={name} loading="lazy" />
+        {itemImage ? (
+          <img src={itemImage} alt={itemName} loading="lazy" />
         ) : (
           <div className="p3-bill-placeholder">ไม่มีรูป</div>
         )}
@@ -156,11 +159,11 @@ const BillItem = ({ item }) => {
       <div className="p3-bill-order-info">
         <div className="p3-bill-order-row">
           <span>ชื่อเมนู:</span>
-          <strong>{name}</strong>
+          <strong>{itemName}</strong>
         </div>
 
         {options.map(({ label, value }) => (
-          <div className="p3-bill-order-row" key={label}>
+          <div className="p3-bill-order-row" key={`${label}-${value}`}>
             <span>{label}</span>
             <p>{value}</p>
           </div>
@@ -168,7 +171,9 @@ const BillItem = ({ item }) => {
 
         <div className="p3-bill-order-row">
           <span>ราคา:</span>
-          <p className="p3-bill-item-price">{totalPrice.toLocaleString()} บาท</p>
+          <p className="p3-bill-item-price">
+            {totalPrice.toLocaleString()} บาท
+          </p>
         </div>
       </div>
     </div>
@@ -181,14 +186,15 @@ function Bill({
   onBack,
   onSelectPayment,
 }) {
-  // 3. ใช้ useMemo ป้องกันการคำนวณใหม่โดยไม่จำเป็น
-  const allItems = useMemo(() => 
-    tableOrders.flatMap((order) =>
-      (order.items || []).map((item) => ({
-        ...item,
-        orderId: order.orderId,
-      }))
-    ), [tableOrders]
+  const allItems = useMemo(
+    () =>
+      tableOrders.flatMap((order) =>
+        (order.items || []).map((item) => ({
+          ...item,
+          orderId: order.orderId || order.OId,
+        }))
+      ),
+    [tableOrders]
   );
 
   const PAYMENT_METHODS = [
@@ -210,10 +216,12 @@ function Bill({
               {allItems.length === 0 ? (
                 <div className="p3-bill-empty">ยังไม่มีรายการอาหารในบิล</div>
               ) : (
-                allItems.map((item) => (
-                  <BillItem 
-                    key={`${item.orderId}-${item.cartId}`} 
-                    item={item} 
+                allItems.map((item, index) => (
+                  <BillItem
+                    key={`${item.orderId || "order"}-${
+                      item.cartId || item.OD_Id || item.menuId || item.MenuId || index
+                    }`}
+                    item={item}
                   />
                 ))
               )}
@@ -222,15 +230,13 @@ function Bill({
             <div className="p3-bill-total-line">
               <span>ราคารวม</span>
               <strong className="p3-total-amount">
-                {billTotal.toLocaleString()}
+                {Number(billTotal || 0).toLocaleString()}
               </strong>
               <span>บาท</span>
             </div>
           </div>
-
         </div>
 
-        {/* 4. ใช้ aside สำหรับส่วนประกอบรอง */}
         <aside className="p3-bill-payment-panel">
           {PAYMENT_METHODS.map((method) => (
             <button
