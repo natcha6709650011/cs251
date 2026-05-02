@@ -115,7 +115,7 @@ GO
 
 CREATE TABLE OrderDetails
 (
-    OD_Id VARCHAR(2) PRIMARY KEY,
+    OD_Id VARCHAR(5) PRIMARY KEY,
     Quantity INT,
     UnitPrice INT,
     OId VARCHAR(4),
@@ -160,13 +160,13 @@ GO
 CREATE TABLE Payment
 (
     PId VARCHAR(5) PRIMARY KEY,
-    P_Method VARCHAR(20),
+    P_Method NVARCHAR(20),
     P_DateTime DATETIME2,
     OId VARCHAR(4),
     P_total DECIMAL(10,2),
     FOREIGN KEY (OId) REFERENCES Orders(OId),
     CONSTRAINT check_P_Method CHECK (
-        P_Method IN ('Cash', 'Credit Card', 'QR Code')
+        P_Method IN (N'เงินสด', N'บัตรเครดิต', N'คิวอาร์โค้ด', 'Cash', 'Credit Card', 'QR Code')
     )
 );
 GO
