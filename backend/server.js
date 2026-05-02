@@ -679,23 +679,43 @@ app.get("/api/reservations/customer/:customerId", async (req, res) => {
   try {
     const db = await getPool();
 
+    const hasPeopleCount = await tableHasColumn("Reservation", "PeopleCount");
+
+    const peopleCountSelect = hasPeopleCount
+      ? "PeopleCount"
+      : "CAST(1 AS INT) AS PeopleCount";
+
+    const peopleCountAliasSelect = hasPeopleCount
+      ? "PeopleCount AS peopleCount"
+      : "CAST(1 AS INT) AS peopleCount";
+
     const result = await db
       .request()
       .input("CId", sql.VarChar(10), req.params.customerId)
       .query(`
         SELECT
           RId,
+          RId AS reservationId,
           CId,
           TNumber,
+          TNumber AS tableNumber,
           CONVERT(varchar(10), RDate, 120) AS RDate,
+          CONVERT(varchar(10), RDate, 120) AS reservationDate,
           CONVERT(varchar(5), RTime, 108) AS RTime,
-          PeopleCount
+          CONVERT(varchar(5), RTime, 108) AS reservationTime,
+          ${peopleCountSelect},
+          ${peopleCountAliasSelect},
+          'reserved' AS status
         FROM Reservation
         WHERE CId = @CId
         ORDER BY RDate DESC, RTime DESC
       `);
 
-    res.json({ success: true, data: result.recordset });
+    res.json({
+      success: true,
+      data: result.recordset,
+      reservations: result.recordset,
+    });
   } catch (error) {
     console.error("GET /api/reservations/customer/:customerId", error);
     res.status(500).json({ success: false, error: error.message });

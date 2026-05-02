@@ -1,5 +1,29 @@
 import { useState } from "react";
 
+function getReservationId(reservation = {}) {
+  return reservation.RId || reservation.reservationId || reservation.id;
+}
+
+function getReservationTable(reservation = {}) {
+  return reservation.tableNumber || reservation.TNumber || reservation.table || "-";
+}
+
+function getReservationDate(reservation = {}) {
+  return reservation.RDate || reservation.reservationDate || reservation.date || "";
+}
+
+function getReservationTime(reservation = {}) {
+  return reservation.RTime || reservation.reservationTime || reservation.time || "";
+}
+
+function getReservationPeopleCount(reservation = {}) {
+  return reservation.PeopleCount || reservation.peopleCount || reservation.count || 1;
+}
+
+function getReservationStatus(reservation = {}) {
+  return reservation.status || reservation.RStatus || "reserved";
+}
+
 function ReservationHistory({
   customer,
   reservations = [],
@@ -13,12 +37,13 @@ function ReservationHistory({
 
   const filteredReservations = reservations.filter((reservation) => {
     if (!selectedDate) return true;
-    return reservation.RDate === selectedDate;
+    return getReservationDate(reservation) === selectedDate;
   });
 
-  const activeReservations = filteredReservations.filter(
-    (reservation) => reservation.status !== "cancelled"
-  );
+  const activeReservations = filteredReservations.filter((reservation) => {
+    const status = getReservationStatus(reservation);
+    return status !== "cancelled" && status !== "ยกเลิก";
+  });
 
   function openConfirm(type, reservation) {
     setConfirmAction(type);
@@ -34,6 +59,7 @@ function ReservationHistory({
     if (selectedReservation) {
       onCheckIn(selectedReservation);
     }
+
     closeConfirm();
   }
 
@@ -41,6 +67,7 @@ function ReservationHistory({
     if (selectedReservation) {
       onCancel(selectedReservation);
     }
+
     closeConfirm();
   }
 
@@ -77,56 +104,74 @@ function ReservationHistory({
             ไม่พบประวัติการจองในวันที่เลือก
           </div>
         ) : (
-          activeReservations.map((reservation) => (
-            <div className="p1-history-card" key={reservation.RId}>
-              <div className="p1-history-name">
-                คุณ {customer?.MFirstName} {customer?.MSurName}
-              </div>
+          activeReservations.map((reservation) => {
+            const status = getReservationStatus(reservation);
+            const isCheckedIn =
+              status === "checked_in" || status === "Check-in แล้ว";
 
-              <div className="p1-history-detail">
-                <p>
-                  <strong>โต๊ะ :</strong> {reservation.tableNumber}
-                </p>
-                <p>
-                  <strong>วันที่จอง :</strong> {reservation.RDate}
-                </p>
-                <p>
-                  <strong>เวลาที่จอง :</strong> {reservation.RTime}
-                </p>
-                <p>
-                  <strong>จำนวนผู้เข้าใช้ :</strong> {reservation.PeopleCount}
-                </p>
-                <p>
-                  <strong>สถานะ :</strong>{" "}
-                  {reservation.status === "reserved"
-                    ? "จองแล้ว"
-                    : reservation.status === "checked_in"
-                    ? "Check-in แล้ว"
-                    : reservation.status}
-                </p>
-              </div>
+            const tableNumber = getReservationTable(reservation);
+            const reservationDate = getReservationDate(reservation);
+            const reservationTime = getReservationTime(reservation);
+            const peopleCount = getReservationPeopleCount(reservation);
 
-              <div className="p1-history-actions">
-                <button
-                  type="button"
-                  className="p1-history-btn p1-btn-green"
-                  onClick={() => openConfirm("checkin", reservation)}
-                  disabled={reservation.status === "checked_in"}
-                >
-                  Check-in
-                </button>
+            return (
+              <div
+                className="p1-history-card"
+                key={getReservationId(reservation)}
+              >
+                <div className="p1-history-name">
+                  คุณ {customer?.MFirstName} {customer?.MSurName}
+                </div>
 
-                <button
-                  type="button"
-                  className="p1-history-btn p1-btn-red"
-                  onClick={() => openConfirm("cancel", reservation)}
-                  disabled={reservation.status === "checked_in"}
-                >
-                  ยกเลิกการจอง
-                </button>
+                <div className="p1-history-detail">
+                  <p>
+                    <strong>โต๊ะ :</strong> {tableNumber}
+                  </p>
+
+                  <p>
+                    <strong>วันที่จอง :</strong> {reservationDate}
+                  </p>
+
+                  <p>
+                    <strong>เวลาที่จอง :</strong> {reservationTime}
+                  </p>
+
+                  <p>
+                    <strong>จำนวนผู้เข้าใช้ :</strong> {peopleCount}
+                  </p>
+
+                  <p>
+                    <strong>สถานะ :</strong>{" "}
+                    {status === "reserved"
+                      ? "จองแล้ว"
+                      : isCheckedIn
+                      ? "Check-in แล้ว"
+                      : status}
+                  </p>
+                </div>
+
+                <div className="p1-history-actions">
+                  <button
+                    type="button"
+                    className="p1-history-btn p1-btn-green"
+                    onClick={() => openConfirm("checkin", reservation)}
+                    disabled={isCheckedIn}
+                  >
+                    Check-in
+                  </button>
+
+                  <button
+                    type="button"
+                    className="p1-history-btn p1-btn-red"
+                    onClick={() => openConfirm("cancel", reservation)}
+                    disabled={isCheckedIn}
+                  >
+                    ยกเลิกการจอง
+                  </button>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
 
         <div className="p1-history-bottom">
@@ -156,7 +201,9 @@ function ReservationHistory({
             </h2>
 
             <p className="p1-history-popup-text">
-              โต๊ะ {selectedReservation.tableNumber} วันที่ {selectedReservation.RDate} เวลา {selectedReservation.RTime}
+              โต๊ะ {getReservationTable(selectedReservation)} วันที่{" "}
+              {getReservationDate(selectedReservation)} เวลา{" "}
+              {getReservationTime(selectedReservation)}
             </p>
 
             <div className="p1-history-popup-actions">
@@ -167,7 +214,9 @@ function ReservationHistory({
                     ? "p1-history-popup-btn p1-history-popup-btn-green"
                     : "p1-history-popup-btn p1-history-popup-btn-red"
                 }
-                onClick={confirmAction === "checkin" ? confirmCheckIn : confirmCancel}
+                onClick={
+                  confirmAction === "checkin" ? confirmCheckIn : confirmCancel
+                }
               >
                 ยืนยัน
               </button>

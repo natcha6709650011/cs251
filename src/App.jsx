@@ -64,13 +64,13 @@ function isSnackOptionMenu(menu) {
   const { rawId, name } = getMenuIdentity(menu);
 
   const snackIds = new Set([
-    "006", // ชีสบอล
-    "031", // เฟรนช์ฟรายส์
-    "032", // ไก่ป๊อป
-    "033", // กุ้งชุบแป้งทอด
-    "034", // เอ็นไก่ทอด
-    "035", // นักเก็ต
-    "036", // ชีสบอล
+    "006",
+    "031",
+    "032",
+    "033",
+    "034",
+    "035",
+    "036",
   ]);
 
   const snackNames = [
@@ -96,26 +96,23 @@ function shouldSkipMenuDetail(menu) {
   const { rawId, name } = getMenuIdentity(menu);
 
   const simpleMenuIds = new Set([
-    // ของหวานที่ไม่ต้องเลือก option
-    "007", // ขนมปังอบไอน้ำ
-    "008", // สละลอยแก้ว
-    "009", // เฉาก๊วย
-    "010", // พานาคอตต้า
-    "037", // ขนมปังอบไอน้ำ
-    "038", // สละลอยแก้ว
-    "039", // เฉาก๊วย
-    "040", // พานาคอตต้า
-    "041", // บราวนี่
-    "042", // ไอศกรีมช็อกโกแลต
-    "043", // ไอศกรีมมะนาว
-    "044", // ไอศกรีมสตรอว์เบอร์รี
-    "045", // ไอศกรีมวานิลลา
-
-    // เครื่องดื่มสำเร็จรูป/ขวด ไม่ต้องเลือก option
-    "046", // น้ำเปล่า
-    "047", // น้ำส้มคั้นสด
-    "048", // น้ำมะนาว
-    "049", // เป๊ปซี่
+    "007",
+    "008",
+    "009",
+    "010",
+    "037",
+    "038",
+    "039",
+    "040",
+    "041",
+    "042",
+    "043",
+    "044",
+    "045",
+    "046",
+    "047",
+    "048",
+    "049",
   ]);
 
   const simpleNames = [
@@ -137,7 +134,6 @@ function shouldSkipMenuDetail(menu) {
     "brownie",
   ];
 
-  // ของทอด/ของทานเล่น เช่น ชีสบอล เฟรนช์ฟรายส์ นักเก็ต ต้องมี option ท็อปปิ้ง/ชีสดิป
   if (isSnackOptionMenu(menu)) return false;
 
   return (
@@ -273,8 +269,6 @@ function normalizeReservationFromDb(item) {
     status: item.status || item.RStatus || "reserved",
   };
 }
-
-
 
 
 function sanitizeCartItemForApi(item) {
@@ -709,8 +703,6 @@ function App() {
         return;
       }
 
-      // กดปุ่ม Member = ต้องไปหน้าเลือกโต๊ะ/สั่งอาหารเสมอ
-      // ไม่ auto เด้งไปประวัติการจอง ถึงแม้สมาชิกจะเคยมี reservation
       setSelectedTable(null);
       setPage("service-table");
     } catch (error) {
@@ -978,9 +970,6 @@ function App() {
   }
 
   function addToCart(menuOrOptions, maybeOptions) {
-    // รองรับทั้ง 2 แบบ:
-    // 1) simple menu เรียก addToCart(menu, {})
-    // 2) menu-detail บาง component เรียก addToCart(options) โดยไม่ได้ส่ง selectedMenu มา
     const looksLikeMenu =
       menuOrOptions &&
       (menuOrOptions.id ||
@@ -1010,17 +999,14 @@ function App() {
     const newItem = {
       cartId: generateId("CART"),
 
-      // menu id aliases
       menuId: menu.menuId || menu.MenuId || menu.id,
       MenuId: menu.menuId || menu.MenuId || menu.id,
       id: menu.id || menu.MenuId || menu.menuId,
 
-      // name aliases: กัน Cart component เรียกคนละชื่อ
       name: menuName,
       menuName: menuName,
       MenuName: menuName,
 
-      // image aliases
       image: menuImage,
       img: menuImage,
       imageUrl: menuImage,
@@ -1029,7 +1015,6 @@ function App() {
       photo: menuImage,
       picture: menuImage,
 
-      // price aliases
       price: safePrice,
       finalPrice: safePrice,
       unitPrice: safePrice,
@@ -1092,77 +1077,78 @@ function App() {
     setCart((prev) => prev.filter((item) => item.cartId !== cartId));
   }
 
-async function confirmOrder() {
-  if (cart.length === 0) {
-    alert("ยังไม่มีรายการในตะกร้า");
-    return;
-  }
+  async function confirmOrder() {
+    if (cart.length === 0) {
+      alert("ยังไม่มีรายการในตะกร้า");
+      return;
+    }
 
-  if (!selectedTable) {
-    alert("กรุณาเลือกโต๊ะก่อน");
-    return;
-  }
+    if (!selectedTable) {
+      alert("กรุณาเลือกโต๊ะก่อน");
+      return;
+    }
 
-  const selectedTableFromDB = db.tables.find(
-    (table) => table.TNumber === selectedTable.TNumber
-  );
+    const selectedTableFromDB = db.tables.find(
+      (table) => table.TNumber === selectedTable.TNumber
+    );
 
-  const tableEmployeeIds = selectedTableFromDB?.employeeIds || [];
+    const tableEmployeeIds = selectedTableFromDB?.employeeIds || [];
 
-  const finalEmployeeIds =
-    employee?.EId && !tableEmployeeIds.includes(employee.EId)
-      ? [...tableEmployeeIds, employee.EId]
-      : tableEmployeeIds;
+    const finalEmployeeIds =
+      employee?.EId && !tableEmployeeIds.includes(employee.EId)
+        ? [...tableEmployeeIds, employee.EId]
+        : tableEmployeeIds;
 
-  try {
-    const safeCartItems = cart.map(sanitizeCartItemForApi);
+    try {
+      const safeCartItems = cart.map(sanitizeCartItemForApi);
 
-    const result = await apiRequest("/api/orders", {
-      method: "POST",
-      body: JSON.stringify({
-        customerId: customer?.CId || "G00001",
-        employeeId: employee?.EId || "E123456",
+      const result = await apiRequest("/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          customerId: customer?.CId || "G00001",
+          employeeId: employee?.EId || "E123456",
+          tableNumber: selectedTable.TNumber,
+          items: enrichOrderItemsWithMenuData(safeCartItems),
+        }),
+      });
+
+      const newOrder = {
+        orderId: result.orderId,
         tableNumber: selectedTable.TNumber,
+        customerId: customer?.CId || "",
+        customerType,
+        employeeId: employee?.EId || "",
+        employeeIds: finalEmployeeIds,
         items: enrichOrderItemsWithMenuData(safeCartItems),
-      }),
-    });
+        total: cartTotal,
+        status: "ordered",
+        createdAt: new Date().toISOString(),
+      };
 
-    const newOrder = {
-      orderId: result.orderId,
-      tableNumber: selectedTable.TNumber,
-      customerId: customer?.CId || "",
-      customerType,
-      employeeId: employee?.EId || "",
-      employeeIds: finalEmployeeIds,
-      items: enrichOrderItemsWithMenuData(safeCartItems),
-      total: cartTotal,
-      status: "ordered",
-      createdAt: new Date().toISOString(),
-    };
+      updateDB((prev) => ({
+        ...prev,
+        orders: [...prev.orders, newOrder],
+        tables: prev.tables.map((table) =>
+          table.TNumber === selectedTable.TNumber
+            ? {
+                ...table,
+                Status: "ไม่ว่าง",
+                TStatus: "not available",
+                employeeId: employee?.EId || table.employeeId || "",
+                employeeIds: finalEmployeeIds,
+              }
+            : table
+        ),
+      }));
 
-    updateDB((prev) => ({
-      ...prev,
-      orders: [...prev.orders, newOrder],
-      tables: prev.tables.map((table) =>
-        table.TNumber === selectedTable.TNumber
-          ? {
-              ...table,
-              Status: "ไม่ว่าง",
-              TStatus: "not available",
-              employeeId: employee?.EId || table.employeeId || "",
-              employeeIds: finalEmployeeIds,
-            }
-          : table
-      ),
-    }));
-
-    setCart([]);
-    setPage("order-success");
-  } catch (error) {
-    console.error(error);
-    alert(`ยืนยันคำสั่งซื้อไม่สำเร็จ: ${error.message}`);
+      setCart([]);
+      setPage("order-success");
+    } catch (error) {
+      console.error(error);
+      alert(`ยืนยันคำสั่งซื้อไม่สำเร็จ: ${error.message}`);
+    }
   }
-}
+
   function handleSelectPayment(method) {
     if (tableOrders.length === 0) {
       alert("ยังไม่มีรายการอาหารในบิล");
@@ -1173,25 +1159,66 @@ async function confirmOrder() {
     setPage("payment-summary");
   }
 
-function createReviewSession(currentOrders) {
+  function getMemberCustomerFromOrders(currentOrders = []) {
+    const possibleCustomerIds = [
+      customer?.CId,
+      customer?.cid,
+      customer?.id,
+      selectedReservation?.customerId,
+      selectedReservation?.CId,
+      ...(currentOrders || []).map(
+        (order) => order.customerId || order.CId || order.customer?.CId || ""
+      ),
+    ]
+      .filter(Boolean)
+      .map((id) => String(id));
+
+    const memberId = possibleCustomerIds.find((id) => id.startsWith("M"));
+
     const reservationMember =
-      selectedReservation?.customerId
-        ? db.members.find((member) => member.CId === selectedReservation.customerId)
+      selectedReservation?.customerId || selectedReservation?.CId
+        ? db.members.find(
+            (member) =>
+              member.CId === selectedReservation.customerId ||
+              member.CId === selectedReservation.CId
+          )
         : null;
 
-    const memberCustomer = customer || reservationMember;
+    const orderMember = memberId
+      ? db.members.find((member) => String(member.CId) === memberId)
+      : null;
 
-    const isMemberCustomer =
-      customerType === "Member" ||
-      Boolean(selectedReservation?.customerId) ||
-      String(memberCustomer?.CId || "").startsWith("M") ||
-      Boolean(memberCustomer?.MFirstName || memberCustomer?.MTel);
+    return {
+      memberCustomer: customer || reservationMember || orderMember || null,
+      memberId,
+      isMemberCustomer:
+        String(customerType || "").toLowerCase() === "member" ||
+        String(customerType || "") === "Member" ||
+        Boolean(memberId) ||
+        String(customer?.CId || "").startsWith("M") ||
+        Boolean(customer?.MFirstName || customer?.MTel || customer?.MEmail) ||
+        Boolean(reservationMember) ||
+        Boolean(orderMember),
+    };
+  }
 
-    if (!memberCustomer || !isMemberCustomer || currentOrders.length === 0) {
+  // ✅ FIX: createReviewSession ปิด } ถูกที่ และ flatten employeeIds จากทุก order
+  function createReviewSession(currentOrders) {
+    const { memberCustomer, memberId, isMemberCustomer } =
+      getMemberCustomerFromOrders(currentOrders);
+
+    if (!isMemberCustomer || currentOrders.length === 0) {
       return "";
     }
 
-    // ใช้ OId/orderId จริงจาก Orders ทุกใบในบิลเดียวกัน
+    const reviewCustomerData =
+      memberCustomer ||
+      (memberId ? { CId: memberId } : null) ||
+      customer ||
+      null;
+
+    setReviewCustomer(reviewCustomerData);
+
     const orderIds = [
       ...new Set(
         currentOrders
@@ -1200,8 +1227,38 @@ function createReviewSession(currentOrders) {
       ),
     ];
 
-    return orderIds.join(",");
-  }
+    // ✅ FIX: รวม employeeIds จากทุก order (รองรับหลายออเดอร์ + เปลี่ยนพนักงาน)
+    const employeeIds = [
+      ...new Set(
+        currentOrders
+          .flatMap((order) => [
+            ...(Array.isArray(order.employeeIds) ? order.employeeIds : []),
+            order.employeeId || "",
+          ])
+          .filter(Boolean)
+      ),
+    ];
+
+    const newReviewCode = btoa(JSON.stringify({ orderIds, employeeIds }));
+
+    // ✅ save session ลง db ให้ getReviewSessionData() หาเจอ
+    updateDB((prev) => ({
+      ...prev,
+      reviewSessions: [
+        ...(prev.reviewSessions || []).filter((s) => s.reviewCode !== newReviewCode),
+        {
+          reviewCode: newReviewCode,
+          customerId: reviewCustomerData?.CId || memberId || "",
+          orderIds,
+          employeeIds,
+          status: "pending",
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    }));
+
+    return newReviewCode;
+  } // ✅ ปิด createReviewSession ตรงนี้
 
   async function confirmPayment() {
     const currentOrders = tableOrders;
@@ -1252,18 +1309,7 @@ function createReviewSession(currentOrders) {
       orderIds: currentOrders.map((order) => order.orderId),
     };
 
-    const reservationMember =
-      selectedReservation?.customerId
-        ? db.members.find((member) => member.CId === selectedReservation.customerId)
-        : null;
-
-    const memberCustomer = customer || reservationMember;
-
-    const isMemberCustomer =
-      customerType === "Member" ||
-      Boolean(selectedReservation?.customerId) ||
-      String(memberCustomer?.CId || "").startsWith("M") ||
-      Boolean(memberCustomer?.MFirstName || memberCustomer?.MTel);
+    const { isMemberCustomer } = getMemberCustomerFromOrders(currentOrders);
 
     if (isMemberCustomer && currentOrders.length > 0) {
       const newReviewCode = createReviewSession(currentOrders);
@@ -1455,7 +1501,15 @@ function createReviewSession(currentOrders) {
           item.name ||
           "ไม่ระบุชื่อเมนู";
 
+        // ✅ FIX: ดึง URL รูปจาก menuData (local) เพราะ db.menus ไม่มี URL
+        const menuDataItem = menuData.find(
+          (m) =>
+            String(m.id || "").padStart(3, "0") ===
+            String(menuId || "").replace(/\D/g, "").padStart(3, "0")
+        );
+
         const localImage =
+          menuDataItem?.image ||
           localMenu?.image ||
           localMenu?.img ||
           localMenu?.imageUrl ||
@@ -1877,7 +1931,7 @@ function createReviewSession(currentOrders) {
         />
       )}
 
-{page === "payment-success" && (
+      {page === "payment-success" && (
         <PaymentSuccess
           paymentMethod={paymentMethod}
           total={paymentSuccessTotal || billTotal}
