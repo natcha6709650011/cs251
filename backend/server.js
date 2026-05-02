@@ -1050,10 +1050,17 @@ app.get("/api/review-data/:orderId", async (req, res) => {
     const db = await getPool();
 
     const rawCode = decodeURIComponent(String(req.params.orderId || "").trim());
-    const orderIds = rawCode
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
+
+    // reviewCode อาจเป็น base64 ของ { orderIds, employeeIds } หรือ orderId ธรรมดา
+    let orderIds = [];
+    try {
+      const decoded = JSON.parse(Buffer.from(rawCode, "base64").toString("utf8"));
+      if (Array.isArray(decoded.orderIds) && decoded.orderIds.length > 0) {
+        orderIds = decoded.orderIds.map((id) => String(id).trim()).filter(Boolean);
+      }
+    } catch (e) {
+      orderIds = rawCode.split(",").map((item) => item.trim()).filter(Boolean);
+    }
 
     if (orderIds.length === 0) {
       return res.status(400).json({
@@ -1066,7 +1073,7 @@ app.get("/api/review-data/:orderId", async (req, res) => {
 
     const orderRequest = db.request();
     orderIds.forEach((orderId, index) => {
-      orderRequest.input(`OId${index}`, sql.VarChar(4), orderId);
+      orderRequest.input(`OId${index}`, sql.VarChar(10), orderId);
     });
 
     const orderResult = await orderRequest.query(`
@@ -1076,7 +1083,6 @@ app.get("/api/review-data/:orderId", async (req, res) => {
         o.CId,
         o.EId,
         o.TNumber,
-        o.OStatus,
         m.MFirstName,
         m.MSurName,
         m.MTel,
@@ -1109,7 +1115,7 @@ app.get("/api/review-data/:orderId", async (req, res) => {
 
     const detailRequest = db.request();
     foundOrderIds.forEach((orderId, index) => {
-      detailRequest.input(`DetailOId${index}`, sql.VarChar(4), orderId);
+      detailRequest.input(`DetailOId${index}`, sql.VarChar(10), orderId);
     });
 
     const detailResult = await detailRequest.query(`
@@ -1119,12 +1125,6 @@ app.get("/api/review-data/:orderId", async (req, res) => {
         od.MenuId,
         od.Quantity,
         od.UnitPrice,
-        od.SubTotal,
-        od.SizeOption,
-        od.Toppings,
-        od.DrinkType,
-        od.Sweetness,
-        od.Note,
         menu.MenuName,
         menu.Price
       FROM OrderDetails od

@@ -1389,6 +1389,29 @@ function App() {
   }
 
   function getReviewSessionData() {
+    const params = new URLSearchParams(window.location.search);
+    const payload = params.get("data");
+
+    if (payload) {
+      try {
+        const decodedText = decodeURIComponent(
+          Array.prototype.map
+            .call(atob(payload), (char) => {
+              return "%" + ("00" + char.charCodeAt(0).toString(16)).slice(-2);
+            })
+            .join("")
+        );
+
+        const decodedPayload = JSON.parse(decodedText);
+
+        if (decodedPayload) {
+          return decodedPayload;
+        }
+      } catch (error) {
+        console.error("decode review payload error:", error);
+      }
+    }
+
     const thaiMenuMap = {
       "001": "ข้าวผัดหมู",
       "002": "ข้าวผัดไก่",
@@ -1741,9 +1764,25 @@ function App() {
       "thank-you",
     ].includes(page);
 
-  const reviewSessionData = getReviewSessionData();
+ const reviewSessionData = getReviewSessionData();
 
-  return (
+const reviewPayloadParam =
+  reviewCode && reviewSessionData
+    ? encodeURIComponent(
+        btoa(
+          encodeURIComponent(JSON.stringify(reviewSessionData)).replace(
+            /%([0-9A-F]{2})/g,
+            (match, p1) => String.fromCharCode("0x" + p1)
+          )
+        )
+      )
+    : "";
+
+const reviewLink = reviewCode
+  ? `${window.location.origin}/review/${encodeURIComponent(reviewCode)}`
+  : "";
+
+return (
     <>
       {showHeader && (
         <Header
@@ -1936,8 +1975,8 @@ function App() {
           paymentMethod={paymentMethod}
           total={paymentSuccessTotal || billTotal}
           reviewCode={reviewCode}
-          reviewUrl={reviewCode ? `${window.location.origin}/review/${encodeURIComponent(reviewCode)}` : ""}
-          qrValue={reviewCode ? `${window.location.origin}/review/${encodeURIComponent(reviewCode)}` : ""}
+          reviewUrl={reviewLink}
+          qrValue={reviewLink}
           onClearTable={clearTable}
           onGoReview={() => setPage("review")}
         />
@@ -1974,10 +2013,18 @@ function App() {
               }
             `}
           </style>
-          <ReviewPage
-            reviewData={reviewSessionData}
-            onSubmit={submitReview}
-          />
+          {reviewSessionData ? (
+            <ReviewPage
+              reviewData={reviewSessionData}
+              onSubmit={submitReview}
+            />
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: "16px" }}>
+              <div style={{ width: "40px", height: "40px", border: "4px solid #e5e7eb", borderTop: "4px solid #f59e0b", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              <p style={{ color: "#6b7280", fontSize: "16px" }}>กำลังโหลดข้อมูลรีวิว...</p>
+            </div>
+          )}
         </div>
       )}
 
