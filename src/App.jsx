@@ -47,18 +47,182 @@ function dbTableToUiTable(table) {
   };
 }
 
+
+function getMenuIdentity(menu) {
+  const rawId = String(menu?.menuId || menu?.MenuId || menu?.id || "")
+    .replace(/\D/g, "")
+    .padStart(3, "0");
+
+  const name = String(menu?.name || menu?.MenuName || menu?.menuName || "")
+    .trim()
+    .toLowerCase();
+
+  return { rawId, name };
+}
+
+function isSnackOptionMenu(menu) {
+  const { rawId, name } = getMenuIdentity(menu);
+
+  const snackIds = new Set([
+    "006", // ชีสบอล
+    "031", // เฟรนช์ฟรายส์
+    "032", // ไก่ป๊อป
+    "033", // กุ้งชุบแป้งทอด
+    "034", // เอ็นไก่ทอด
+    "035", // นักเก็ต
+    "036", // ชีสบอล
+  ]);
+
+  const snackNames = [
+    "ชีสบอล",
+    "เฟรนช์ฟรายส์",
+    "ไก่ป๊อป",
+    "กุ้งชุบแป้งทอด",
+    "เอ็นไก่ทอด",
+    "นักเก็ต",
+    "cheese ball",
+    "french fries",
+    "fries",
+    "nugget",
+  ];
+
+  return (
+    snackIds.has(rawId) ||
+    snackNames.some((item) => name.includes(item.toLowerCase()))
+  );
+}
+
+function shouldSkipMenuDetail(menu) {
+  const { rawId, name } = getMenuIdentity(menu);
+
+  const simpleMenuIds = new Set([
+    // ของหวานที่ไม่ต้องเลือก option
+    "007", // ขนมปังอบไอน้ำ
+    "008", // สละลอยแก้ว
+    "009", // เฉาก๊วย
+    "010", // พานาคอตต้า
+    "037", // ขนมปังอบไอน้ำ
+    "038", // สละลอยแก้ว
+    "039", // เฉาก๊วย
+    "040", // พานาคอตต้า
+    "041", // บราวนี่
+    "042", // ไอศกรีมช็อกโกแลต
+    "043", // ไอศกรีมมะนาว
+    "044", // ไอศกรีมสตรอว์เบอร์รี
+    "045", // ไอศกรีมวานิลลา
+
+    // เครื่องดื่มสำเร็จรูป/ขวด ไม่ต้องเลือก option
+    "046", // น้ำเปล่า
+    "047", // น้ำส้มคั้นสด
+    "048", // น้ำมะนาว
+    "049", // เป๊ปซี่
+  ]);
+
+  const simpleNames = [
+    "ขนมปังอบไอน้ำ",
+    "สละลอยแก้ว",
+    "เฉาก๊วย",
+    "พานาคอตต้า",
+    "บราวนี่",
+    "ไอศกรีม",
+    "น้ำเปล่า",
+    "น้ำส้มคั้นสด",
+    "น้ำมะนาว",
+    "เป๊ปซี่",
+    "pepsi",
+    "steamed bread",
+    "sala loi kaew",
+    "chaokuai",
+    "panna cotta",
+    "brownie",
+  ];
+
+  // ของทอด/ของทานเล่น เช่น ชีสบอล เฟรนช์ฟรายส์ นักเก็ต ต้องมี option ท็อปปิ้ง/ชีสดิป
+  if (isSnackOptionMenu(menu)) return false;
+
+  return (
+    simpleMenuIds.has(rawId) ||
+    simpleNames.some((item) => name.includes(item.toLowerCase()))
+  );
+}
+
+function isSweetnessDrinkMenu(menu) {
+  const { rawId, name } = getMenuIdentity(menu);
+
+  const sweetnessDrinkIds = new Set([
+    "011", "012", "013", "014", "015",
+    "050", "051", "052", "053", "054", "055", "056", "057", "058", "059", "060",
+  ]);
+
+  const drinkNames = [
+    "ชามะนาว",
+    "ชาไทย",
+    "เอสเปรสโซ",
+    "ลาเต้",
+    "อเมริกาโน่",
+    "โกโก้",
+    "มอคค่า",
+    "มัทฉะลาเต้",
+    "ชามะลิ",
+    "ชาดำ",
+    "นมสด",
+    "mocha",
+    "latte",
+    "matcha",
+    "cocoa",
+    "tea",
+  ];
+
+  return (
+    sweetnessDrinkIds.has(rawId) ||
+    drinkNames.some((item) => name.includes(item.toLowerCase()))
+  );
+}
+
+function normalizeMenuOptionBehavior(menu) {
+  if (!menu) return menu;
+
+  if (isSnackOptionMenu(menu)) {
+    return {
+      ...menu,
+      optionType: "snack",
+      options: menu.options || [],
+    };
+  }
+
+  if (shouldSkipMenuDetail(menu)) {
+    return {
+      ...menu,
+      optionType: "simple",
+      options: [],
+    };
+  }
+
+  if (isSweetnessDrinkMenu(menu)) {
+    return {
+      ...menu,
+      optionType: "drink",
+      options: menu.options || [],
+    };
+  }
+
+  return menu;
+}
+
 function uiPaymentToDb(method) {
   const map = {
-    "เงินสด": "Cash",
-    "สแกนคิวอาร์โค้ด": "Qr Code",
-    "บัตรเครดิต/เดบิต": "Credit Card",
-    Cash: "Cash",
-    "Qr Code": "Qr Code",
-    "QR Code": "Qr Code",
-    "Credit Card": "Credit Card",
+    "เงินสด": "เงินสด",
+    "สแกนคิวอาร์โค้ด": "คิวอาร์โค้ด",
+    "คิวอาร์โค้ด": "คิวอาร์โค้ด",
+    "บัตรเครดิต/เดบิต": "บัตรเครดิต",
+    "บัตรเครดิต": "บัตรเครดิต",
+    Cash: "เงินสด",
+    "Qr Code": "คิวอาร์โค้ด",
+    "QR Code": "คิวอาร์โค้ด",
+    "Credit Card": "บัตรเครดิต",
   };
 
-  return map[method] || method || "Cash";
+  return map[method] || method || "เงินสด";
 }
 
 function formatReservationDate(value) {
@@ -247,13 +411,16 @@ function App() {
                     String(dbMenu.menuId || dbMenu.id).padStart(3, "0")
                 );
 
-                return {
+                const mergedMenu = {
                   ...dbMenu,
                   name: localMenu?.name || dbMenu.name,
                   image: localMenu?.image || "",
                   description: localMenu?.description || dbMenu.description || "",
                   options: localMenu?.options || dbMenu.options || [],
+                  optionType: localMenu?.optionType || dbMenu.optionType,
                 };
+
+                return normalizeMenuOptionBehavior(mergedMenu);
               })
             : prev.menus,
           }));
@@ -402,8 +569,14 @@ function App() {
         return;
       }
 
-      if (foundEmployee.EStatus && foundEmployee.EStatus !== "active") {
-        alert("พนักงานไม่ได้อยู่ในสถานะ active");
+      const employeeStatus = String(foundEmployee.EStatus || "").trim();
+
+      if (
+        employeeStatus &&
+        employeeStatus !== "active" &&
+        employeeStatus !== "กำลังทำงาน"
+      ) {
+        alert("พนักงานไม่ได้อยู่ในสถานะกำลังทำงาน");
         return;
       }
 
@@ -786,12 +959,14 @@ function App() {
   }
 
   function handleMenuClick(menu) {
-    if (menu.optionType === "simple") {
-      addToCart(menu, {});
+    const normalizedMenu = normalizeMenuOptionBehavior(menu);
+
+    if (normalizedMenu.optionType === "simple" || shouldSkipMenuDetail(normalizedMenu)) {
+      addToCart(normalizedMenu, {});
       return;
     }
 
-    setSelectedMenu(menu);
+    setSelectedMenu(normalizedMenu);
     setMenuOptions({
       size: "ธรรมดา",
       topping: "",

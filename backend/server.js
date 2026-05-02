@@ -171,17 +171,36 @@ function mapOptionType(categoryName) {
 }
 
 function mapPaymentMethod(method) {
-  const map = {
-    เงินสด: "Cash",
-    "สแกนคิวอาร์โค้ด": "Qr Code",
-    "บัตรเครดิต/เดบิต": "Credit Card",
-    Cash: "Cash",
-    "Qr Code": "Qr Code",
-    "QR Code": "Qr Code",
-    "Credit Card": "Credit Card",
-  };
+  const value = normalizeString(method, "").trim();
 
-  return map[method] || "Cash";
+  if (
+    value === "เงินสด" ||
+    value === "Cash" ||
+    value === "cash"
+  ) {
+    return "เงินสด";
+  }
+
+  if (
+    value === "สแกนคิวอาร์โค้ด" ||
+    value === "คิวอาร์โค้ด" ||
+    value === "QR Code" ||
+    value === "Qr Code" ||
+    value === "qr code"
+  ) {
+    return "คิวอาร์โค้ด";
+  }
+
+  if (
+    value === "บัตรเครดิต/เดบิต" ||
+    value === "บัตรเครดิต" ||
+    value === "Credit Card" ||
+    value === "credit card"
+  ) {
+    return "บัตรเครดิต";
+  }
+
+  return "เงินสด";
 }
 
 function getMenuIdFromItem(item) {
@@ -195,16 +214,19 @@ function getMenuIdFromItem(item) {
 async function updateTableStatusInTx(transaction, tableNumber, status) {
   if (!tableNumber) return;
 
+  const value = normalizeString(status, "ว่าง").trim();
+
   const statusMap = {
-    "ว่าง": "available",
-    "ไม่ว่าง": "not available",
-    empty: "available",
-    occupied: "not available",
-    available: "available",
-    "not available": "not available",
+    "ว่าง": "ว่าง",
+    "ไม่ว่าง": "ไม่ว่าง",
+    empty: "ว่าง",
+    occupied: "ไม่ว่าง",
+    available: "ว่าง",
+    "not available": "ไม่ว่าง",
+    "not_available": "ไม่ว่าง",
   };
 
-  const finalStatus = statusMap[status] || status || "available";
+  const finalStatus = statusMap[value] || value || "ว่าง";
 
   const hasStatus = await tableHasColumn("Tables", "Status");
   const hasTStatus = await tableHasColumn("Tables", "TStatus");
@@ -212,7 +234,7 @@ async function updateTableStatusInTx(transaction, tableNumber, status) {
   if (hasStatus) {
     await transaction
       .request()
-      .input("Status", sql.VarChar(20), finalStatus)
+      .input("Status", sql.NVarChar(20), finalStatus)
       .input("TNumber", sql.VarChar(2), tableNumber)
       .query(`
         UPDATE Tables
@@ -224,7 +246,7 @@ async function updateTableStatusInTx(transaction, tableNumber, status) {
   if (hasTStatus) {
     await transaction
       .request()
-      .input("TStatus", sql.VarChar(20), finalStatus)
+      .input("TStatus", sql.NVarChar(20), finalStatus)
       .input("TNumber", sql.VarChar(2), tableNumber)
       .query(`
         UPDATE Tables
@@ -781,7 +803,7 @@ app.post("/api/orders", async (req, res) => {
         .input("CId", sql.VarChar(10), cId)
         .input("EId", sql.VarChar(10), finalEmployeeId)
         .input("TNumber", sql.VarChar(2), tNumber)
-        .input("OStatus", sql.VarChar(20), "pending")
+        .input("OStatus", sql.NVarChar(20), "รอดำเนินการ")
         .query(`
           INSERT INTO Orders (OId, ODateTime, CId, EId, TNumber, OStatus)
           VALUES (@OId, @ODateTime, @CId, @EId, @TNumber, @OStatus)
@@ -951,7 +973,7 @@ app.post("/api/payments", async (req, res) => {
       await transaction
         .request()
         .input("PId", sql.VarChar(5), paymentId)
-        .input("P_Method", sql.VarChar(20), paymentMethod)
+        .input("P_Method", sql.NVarChar(20), paymentMethod)
         .input("P_DateTime", sql.DateTime2, new Date())
         .input("OId", sql.VarChar(4), oId)
         .input("P_total", sql.Int, pTotal)
@@ -963,7 +985,7 @@ app.post("/api/payments", async (req, res) => {
       await transaction
         .request()
         .input("PId", sql.VarChar(5), paymentId)
-        .input("P_Method", sql.VarChar(20), paymentMethod)
+        .input("P_Method", sql.NVarChar(20), paymentMethod)
         .input("P_DateTime", sql.DateTime2, new Date())
         .input("OId", sql.VarChar(4), oId)
         .query(`
@@ -976,7 +998,7 @@ app.post("/api/payments", async (req, res) => {
       await transaction
         .request()
         .input("OId", sql.VarChar(4), oId)
-        .input("OStatus", sql.VarChar(15), "paid")
+        .input("OStatus", sql.NVarChar(20), "ชำระเงินแล้ว")
         .query(`
           UPDATE Orders
           SET OStatus = @OStatus
