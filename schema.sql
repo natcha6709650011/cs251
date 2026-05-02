@@ -1,4 +1,3 @@
-
 CREATE TABLE Employee
 (
     EId VARCHAR(10) PRIMARY KEY,
@@ -8,10 +7,10 @@ CREATE TABLE Employee
     ERole NVARCHAR(20),
     EStatus NVARCHAR(20),
     CONSTRAINT check_ERole CHECK (
-        ERole IN ('staff', 'cashier', 'manager', 'chef')
+        ERole IN (N'พนักงานเสิร์ฟ', N'แคชเชียร์', N'ผู้จัดการร้าน', N'พ่อครัว')
     ),
     CONSTRAINT check_EStatus CHECK (
-        EStatus IN ('active', 'inactive', 'resigned')
+        EStatus IN (N'กำลังทำงาน', N'ลาออก')
     )
 );
 GO
@@ -21,7 +20,7 @@ CREATE TABLE Category
     Category_Id VARCHAR(2) PRIMARY KEY,
     Category_Name NVARCHAR(25),
     CONSTRAINT check_category_name CHECK (
-        Category_Name IN ('recommended', 'food', 'snack', 'dessert', 'drink')
+        Category_Name IN (N'เมนูแนะนำ', N'อาหาร', N'ของทานเล่น', N'ของหวาน', N'เครื่องดื่ม')
     )
 );
 GO
@@ -33,7 +32,7 @@ CREATE TABLE Menu
     Price INT,
     MenuStatus NVARCHAR(20),
     CONSTRAINT check_MenuStatus CHECK (
-        MenuStatus IN ('available', 'not available')
+        MenuStatus IN (N'พร้อมจำหน่าย', N'หมด')
     )
 );
 GO
@@ -68,10 +67,10 @@ CREATE TABLE Tables
     T_Type NVARCHAR(10),
     TStatus NVARCHAR(20),
     CONSTRAINT check_T_Type CHECK (
-        T_Type IN ('small', 'medium', 'large')
+        T_Type IN (N'เล็ก', N'กลาง', N'ใหญ่')
     ),
     CONSTRAINT check_TStatus CHECK (
-        TStatus IN ('available', 'not available')
+        TStatus IN (N'ว่าง', N'ไม่ว่าง')
     )
 );
 GO
@@ -111,7 +110,7 @@ CREATE TABLE Orders
     FOREIGN KEY (EId) REFERENCES Employee(EId),
     FOREIGN KEY (TNumber) REFERENCES Tables(TNumber),
     CONSTRAINT check_OStatus CHECK (
-        OStatus IN ('pending', 'paid', 'cancelled')
+        OStatus IN (N'รอดำเนินการ', N'ชำระเงินแล้ว', N'ยกเลิก')
     )
 );
 GO
@@ -143,7 +142,7 @@ CREATE TABLE Payment
     OId VARCHAR(4),
     FOREIGN KEY (OId) REFERENCES Orders(OId),
     CONSTRAINT check_P_Method CHECK (
-        P_Method IN ('Cash', 'Credit Card', 'Qr Code', 'QR Code')
+        P_Method IN (N'เงินสด', N'บัตรเครดิต', N'คิวอาร์โค้ด')
     )
 );
 GO
